@@ -173,11 +173,11 @@ func (m *Manager) RemoveIngressRule(domain string) error {
 	}
 
 	// Delete DNS record from Cloudflare
-	if dnsRecordID != "" {
+	if dnsRecordID != "" && m.cf != nil {
 		if err := m.cf.DeleteDNSRecord(dnsRecordID); err != nil {
 			log.Printf("[tunnel] Warning: failed to delete DNS record for %s: %v", domain, err)
 		}
-	} else {
+	} else if m.cf != nil {
 		// Try to find and delete by name
 		rec, err := m.cf.GetDNSRecordByName(domain)
 		if err == nil {
@@ -195,11 +195,15 @@ func (m *Manager) RemoveIngressRule(domain string) error {
 	return m.reloadTunnel()
 }
 
-// GetIngressRules returns all current ingress rules
+// GetIngressRules returns all current ingress rules (public, acquires read lock)
 func (m *Manager) GetIngressRules() ([]IngressRuleInfo, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	return m.getIngressRulesInternal()
+}
 
+// getIngressRulesInternal fetches ingress rules WITHOUT locking (caller must hold lock)
+func (m *Manager) getIngressRulesInternal() ([]IngressRuleInfo, error) {
 	rows, err := database.DB().Query(
 		"SELECT id, domain, target, app_type, app_id, enabled, created_at FROM tunnel_ingress_rules ORDER BY domain ASC",
 	)
@@ -231,8 +235,9 @@ type IngressRuleInfo struct {
 }
 
 // regenerateConfig rebuilds the cloudflared config YAML from DB
+// NOTE: caller must hold the write lock (m.mu)
 func (m *Manager) regenerateConfig() error {
-	rules, err := m.GetIngressRules()
+	rules, err := m.getIngressRulesInternal()
 	if err != nil {
 		return err
 	}
