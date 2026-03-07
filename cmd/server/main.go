@@ -10,6 +10,7 @@ import (
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/api"
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/config"
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
+	"github.com/Muhammedhashirm009/tunnel-panel/internal/portmanager"
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/tunnel"
 )
 
@@ -33,6 +34,12 @@ func main() {
 	}
 	defer database.Close()
 	log.Printf("Database initialized at %s", cfg.DBPath)
+
+	// Initialize port manager
+	pm := portmanager.Init(cfg.PortRangeMin, cfg.PortRangeMax)
+	minP, maxP := pm.GetRange()
+	_, used, avail := pm.GetStats()
+	log.Printf("Port manager ready: range %d-%d (%d used, %d available)", minP, maxP, used, avail)
 
 	// Initialize tunnel manager
 	var tunnelMgr *tunnel.Manager

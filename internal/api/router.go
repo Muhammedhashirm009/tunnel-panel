@@ -164,6 +164,11 @@ func SetupRouter(cfg *config.Config, tunnelMgr *tunnel.Manager) *gin.Engine {
 		protectedAPI.DELETE("/sites/:id", sitesHandler.Delete)
 		protectedAPI.PUT("/sites/:id/php", sitesHandler.UpdatePHP)
 		protectedAPI.GET("/sites/php-versions", sitesHandler.GetPHPVersions)
+
+		// Port Management
+		portHandler := handlers.NewPortHandler()
+		protectedAPI.GET("/ports", portHandler.List)
+		protectedAPI.DELETE("/ports/:port", portHandler.Release)
 	}
 
 	return r

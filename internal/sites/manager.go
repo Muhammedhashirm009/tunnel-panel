@@ -2,6 +2,7 @@ package sites
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
+	"github.com/Muhammedhashirm009/tunnel-panel/internal/portmanager"
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/tunnel"
 )
 
@@ -28,9 +30,9 @@ type Site struct {
 
 // Manager handles site lifecycle operations
 type Manager struct {
-	tunnelMgr   *tunnel.Manager
-	sitesRoot   string // e.g., /var/www
-	nginxConf   string // e.g., /etc/nginx/sites-enabled
+	tunnelMgr *tunnel.Manager
+	sitesRoot string // e.g., /var/www
+	nginxConf string // e.g., /etc/nginx/sites-enabled
 }
 
 // NewManager creates a new site manager
@@ -42,9 +44,8 @@ func NewManager(tunnelMgr *tunnel.Manager) *Manager {
 	}
 }
 
-// CreateSite provisions a new PHP site: creates dirs, nginx vhost, PHP-FPM pool, tunnel ingress
+// CreateSite provisions a new PHP site: dir, nginx vhost, port, tunnel ingress
 func (m *Manager) CreateSite(name, domain, phpVersion string) (*Site, error) {
-	// Validate
 	if name == "" || domain == "" {
 		return nil, fmt.Errorf("name and domain are required")
 	}
@@ -59,8 +60,9 @@ func (m *Manager) CreateSite(name, domain, phpVersion string) (*Site, error) {
 		return nil, fmt.Errorf("domain %s already exists", domain)
 	}
 
-	// Allocate port
-	port, err := m.tunnelMgr.AllocatePort("site", 0) // app_id will be set after insert
+	// Allocate port from standalone port manager
+	pm := portmanager.Get()
+	port, err := pm.Allocate("site", 0, name)
 	if err != nil {
 		return nil, fmt.Errorf("port allocation failed: %w", err)
 	}
@@ -68,26 +70,19 @@ func (m *Manager) CreateSite(name, domain, phpVersion string) (*Site, error) {
 	// Create document root
 	docRoot := filepath.Join(m.sitesRoot, name)
 	if err := os.MkdirAll(docRoot, 0755); err != nil {
+		pm.Release(port) // cleanup
 		return nil, fmt.Errorf("cannot create doc root: %w", err)
 	}
 
 	// Create default index.php
-	indexContent := fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head><title>%s</title></head>
-<body>
-<h1>Welcome to %s</h1>
-<p>Domain: %s</p>
-<p>PHP Version: <?php echo phpversion(); ?></p>
-<p>Managed by TunnelPanel</p>
-</body>
-</html>`, name, name, domain)
+	indexContent := fmt.Sprintf("<!DOCTYPE html>\n<html>\n<head><title>%s</title></head>\n<body>\n<h1>Welcome to %s</h1>\n<p>Domain: %s</p>\n<p>PHP Version: <?php echo phpversion(); ?></p>\n<p>Managed by TunnelPanel</p>\n</body>\n</html>", name, name, domain)
 	os.WriteFile(filepath.Join(docRoot, "index.php"), []byte(indexContent), 0644)
 
 	// Generate Nginx vhost
 	confPath := filepath.Join(m.nginxConf, name+".conf")
 	vhostContent := GenerateNginxVhost(domain, docRoot, phpVersion, port)
 	if err := os.WriteFile(confPath, []byte(vhostContent), 0644); err != nil {
+		pm.Release(port)
 		return nil, fmt.Errorf("cannot write nginx config: %w", err)
 	}
 
@@ -96,22 +91,25 @@ func (m *Manager) CreateSite(name, domain, phpVersion string) (*Site, error) {
 
 	// Insert into database
 	result, err := database.DB().Exec(
-		`INSERT INTO sites (name, domain, document_root, php_version, port, nginx_config_path, status, created_at) 
+		`INSERT INTO sites (name, domain, document_root, php_version, port, nginx_config_path, status, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
 		name, domain, docRoot, phpVersion, port, confPath, time.Now(),
 	)
 	if err != nil {
+		pm.Release(port)
+		os.Remove(confPath)
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
 	siteID, _ := result.LastInsertId()
 
 	// Update port allocation with actual site ID
-	database.DB().Exec("UPDATE ports SET app_id = ? WHERE port = ?", siteID, port)
+	pm.UpdateAppID(port, int(siteID))
 
-	// Add tunnel ingress rule
-	if m.tunnelMgr != nil {
-		m.tunnelMgr.AddIngressRule(domain, port, "site", int(siteID))
+	// Add tunnel ingress rule (domain → localhost:port)
+	tunnelErr := m.addTunnelIngress(domain, port, int(siteID))
+	if tunnelErr != nil {
+		log.Printf("[sites] Warning: tunnel ingress failed for %s: %v (site created but not tunneled)", domain, tunnelErr)
 	}
 
 	// Reload Nginx
@@ -128,6 +126,35 @@ func (m *Manager) CreateSite(name, domain, phpVersion string) (*Site, error) {
 		Status:          "active",
 		CreatedAt:       time.Now(),
 	}, nil
+}
+
+// addTunnelIngress adds a domain → localhost:port mapping via the tunnel manager
+func (m *Manager) addTunnelIngress(domain string, port int, siteID int) error {
+	if m.tunnelMgr == nil {
+		// Try to create tunnel manager from DB config
+		mgr, err := m.loadTunnelManager()
+		if err != nil {
+			return fmt.Errorf("no tunnel manager available: %w", err)
+		}
+		m.tunnelMgr = mgr
+	}
+
+	return m.tunnelMgr.AddIngressRule(domain, port, "site", siteID)
+}
+
+// loadTunnelManager tries to create a tunnel manager from DB-stored Cloudflare config
+func (m *Manager) loadTunnelManager() (*tunnel.Manager, error) {
+	var apiToken, accountID, zoneID, zoneName, appsTunnelID string
+	err := database.DB().QueryRow(
+		"SELECT api_token, account_id, zone_id, zone_name, COALESCE(tunnel_apps_id,'') FROM cloudflare_config WHERE id = 1",
+	).Scan(&apiToken, &accountID, &zoneID, &zoneName, &appsTunnelID)
+	if err != nil || apiToken == "" {
+		return nil, fmt.Errorf("cloudflare not configured")
+	}
+
+	cf := tunnel.NewCloudflareClient(apiToken, accountID, zoneID, zoneName)
+	mgr := tunnel.NewManager(cf, nil, "/etc/tunnelpanel", appsTunnelID, "")
+	return mgr, nil
 }
 
 // ListSites returns all sites from the database
@@ -173,16 +200,19 @@ func (m *Manager) DeleteSite(id int) error {
 	// Remove tunnel ingress
 	if m.tunnelMgr != nil {
 		m.tunnelMgr.RemoveIngressRule(site.Domain)
+	} else {
+		// Try to load tunnel manager for cleanup
+		mgr, err := m.loadTunnelManager()
+		if err == nil {
+			mgr.RemoveIngressRule(site.Domain)
+		}
 	}
 
 	// Remove Nginx config
 	os.Remove(site.NginxConfigPath)
 
-	// Remove document root (optional — could be dangerous)
-	// os.RemoveAll(site.DocumentRoot)
-
 	// Free port
-	database.DB().Exec("DELETE FROM ports WHERE port = ?", site.Port)
+	portmanager.Get().Release(site.Port)
 
 	// Delete from DB
 	database.DB().Exec("DELETE FROM sites WHERE id = ?", id)
@@ -200,13 +230,11 @@ func (m *Manager) UpdatePHPVersion(id int, newVersion string) error {
 		return err
 	}
 
-	// Regenerate nginx config
 	vhostContent := GenerateNginxVhost(site.Domain, site.DocumentRoot, newVersion, site.Port)
 	if err := os.WriteFile(site.NginxConfigPath, []byte(vhostContent), 0644); err != nil {
 		return err
 	}
 
-	// Update DB
 	database.DB().Exec("UPDATE sites SET php_version = ? WHERE id = ?", newVersion, id)
 
 	ReloadNginx()
@@ -222,7 +250,6 @@ func GetAvailablePHPVersions() []string {
 		if _, err := os.Stat(socket); err == nil {
 			versions = append(versions, v)
 		}
-		// Also check if the binary exists
 		bin := fmt.Sprintf("/usr/bin/php%s", v)
 		if _, err := os.Stat(bin); err == nil {
 			found := false
@@ -238,14 +265,13 @@ func GetAvailablePHPVersions() []string {
 		}
 	}
 	if len(versions) == 0 {
-		versions = append(versions, "8.2") // fallback
+		versions = append(versions, "8.2")
 	}
 	return versions
 }
 
 // ReloadNginx tests and reloads nginx config
 func ReloadNginx() error {
-	// Test config first
 	if out, err := exec.Command("nginx", "-t").CombinedOutput(); err != nil {
 		return fmt.Errorf("nginx config test failed: %s", strings.TrimSpace(string(out)))
 	}
