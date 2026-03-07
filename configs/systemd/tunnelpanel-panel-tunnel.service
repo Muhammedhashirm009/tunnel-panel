@@ -1,0 +1,18 @@
+[Unit]
+Description=TunnelPanel - Panel Access Tunnel (Tunnel #1)
+After=network.target tunnelpanel.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/cloudflared tunnel --config /etc/tunnelpanel/tunnel-panel.yml run
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tunnelpanel-panel-tunnel
+
+[Install]
+WantedBy=multi-user.target

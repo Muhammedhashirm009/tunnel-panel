@@ -1,0 +1,43 @@
+{{define "sites.html"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        {{template "sidebar" .}}
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Websites</h1>
+                <p>Manage PHP sites with auto-tunneling</p>
+            </div>
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Sites</h3>
+                        <button class="btn btn-primary btn-sm" disabled>+ Create Site (Phase 2)</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="empty-state">
+                            <div class="icon">🌐</div>
+                            <p>Site management will be available in Phase 2</p>
+                            <p style="font-size:0.8rem; color:var(--text-muted);">Create PHP sites with Nginx vhosts,
+                                auto-port assignment, and Cloudflare tunnel routing.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>
+{{end}}

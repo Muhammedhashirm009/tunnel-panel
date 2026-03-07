@@ -1,0 +1,63 @@
+{{define "sidebar"}}
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-icon">🚀</div>
+        <span class="logo-text">TunnelPanel</span>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="sidebar-section-title">Overview</div>
+        <a href="/dashboard" class="sidebar-link {{if eq .Active " dashboard"}}active{{end}}">
+            <span class="icon">📊</span>
+            <span>Dashboard</span>
+        </a>
+
+        <div class="sidebar-section-title">Hosting</div>
+        <a href="/sites" class="sidebar-link {{if eq .Active " sites"}}active{{end}}">
+            <span class="icon">🌐</span>
+            <span>Websites</span>
+        </a>
+        <a href="/docker" class="sidebar-link {{if eq .Active " docker"}}active{{end}}">
+            <span class="icon">🐳</span>
+            <span>Docker</span>
+        </a>
+        <a href="/databases" class="sidebar-link {{if eq .Active " databases"}}active{{end}}">
+            <span class="icon">🗄️</span>
+            <span>Databases</span>
+        </a>
+
+        <div class="sidebar-section-title">Network</div>
+        <a href="/tunnels" class="sidebar-link {{if eq .Active " tunnels"}}active{{end}}">
+            <span class="icon">🔗</span>
+            <span>Tunnels</span>
+        </a>
+
+        <div class="sidebar-section-title">Tools</div>
+        <a href="/files" class="sidebar-link {{if eq .Active " files"}}active{{end}}">
+            <span class="icon">📁</span>
+            <span>File Manager</span>
+        </a>
+        <a href="/terminal" class="sidebar-link {{if eq .Active " terminal"}}active{{end}}">
+            <span class="icon">💻</span>
+            <span>Terminal</span>
+        </a>
+
+        <div class="sidebar-section-title">System</div>
+        <a href="/settings" class="sidebar-link {{if eq .Active " settings"}}active{{end}}">
+            <span class="icon">⚙️</span>
+            <span>Settings</span>
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <div class="avatar">{{slice (printf "%s" .Username) 0 1}}</div>
+            <div class="user-info">
+                <div class="user-name">{{.Username}}</div>
+                <div class="user-role">Administrator</div>
+            </div>
+            <button onclick="logout()" class="btn btn-ghost btn-sm" title="Logout" style="padding:6px;">🚪</button>
+        </div>
+    </div>
+</aside>
+{{end}}

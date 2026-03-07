@@ -1,0 +1,74 @@
+{{define "settings.html"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        {{template "sidebar" .}}
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Settings</h1>
+                <p>Panel configuration and preferences</p>
+            </div>
+            <div class="page-body">
+                <!-- Panel Settings -->
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-header">
+                        <h3>⚙️ Panel Settings</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Listen Port</label>
+                            <input type="number" class="form-control" value="8443" id="settingsPort"
+                                style="max-width:200px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Allow Direct IP Access</label>
+                            <select class="form-control" id="settingsDirectAccess" style="max-width:200px;">
+                                <option value="false">Disabled (tunnel only)</option>
+                                <option value="true">Enabled (emergency fallback)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Session Expiry (hours)</label>
+                            <input type="number" class="form-control" value="24" id="settingsExpiry"
+                                style="max-width:200px;">
+                        </div>
+                        <button class="btn btn-primary" onclick="showToast('Settings save coming soon', 'warning')">Save
+                            Settings</button>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="card" style="border-color: rgba(239, 68, 68, 0.3);">
+                    <div class="card-header">
+                        <h3 style="color:var(--accent-red);">⚠️ Danger Zone</h3>
+                    </div>
+                    <div class="card-body">
+                        <p style="color:var(--text-secondary); margin-bottom:16px;">These actions can be performed via
+                            CLI for safety:</p>
+                        <div
+                            style="font-family:'JetBrains Mono',monospace; font-size:0.85rem; color:var(--text-muted);">
+                            <p><code>tunnelpanel-cli password reset</code> — Reset admin password</p>
+                            <p><code>tunnelpanel-cli restart</code> — Restart panel</p>
+                            <p><code>tunnelpanel-cli tunnel restart</code> — Restart tunnels</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>
+{{end}}

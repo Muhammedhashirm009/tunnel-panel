@@ -1,0 +1,18 @@
+[Unit]
+Description=TunnelPanel - App Routing Tunnel (Tunnel #2) 
+After=network.target tunnelpanel.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/cloudflared tunnel --config /etc/tunnelpanel/tunnel-apps.yml run
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tunnelpanel-apps-tunnel
+
+[Install]
+WantedBy=multi-user.target

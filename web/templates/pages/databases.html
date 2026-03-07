@@ -1,0 +1,37 @@
+{{define "databases.html"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        {{template "sidebar" .}}
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Databases</h1>
+                <p>Manage MySQL/MariaDB databases</p>
+            </div>
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="empty-state">
+                            <div class="icon">🗄️</div>
+                            <p>Database management will be available in Phase 4</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>
+{{end}}

@@ -1,0 +1,264 @@
+{{define "tunnels.html"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <meta name="description" content="TunnelPanel — Tunnel & Domain Manager">
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        {{template "sidebar" .}}
+
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Tunnel Manager</h1>
+                <p>Manage Cloudflare tunnels and domain routing for all your apps</p>
+            </div>
+
+            <div class="page-body">
+                <!-- Tunnel Status Cards -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
+                    <div class="tunnel-status-card">
+                        <div class="tunnel-header">
+                            <span class="tunnel-name">🛡️ Panel Tunnel (#1)</span>
+                            <span class="badge" id="panelTunnelBadge">Loading</span>
+                        </div>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
+                            External tunnel for panel access. Managed as a separate systemd service.
+                        </p>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-ghost btn-sm"
+                                onclick="controlService('tunnelpanel-panel-tunnel', 'restart')">↻ Restart</button>
+                            <button class="btn btn-ghost btn-sm" onclick="viewLogs('panel')">📋 Logs</button>
+                        </div>
+                    </div>
+
+                    <div class="tunnel-status-card">
+                        <div class="tunnel-header">
+                            <span class="tunnel-name">🌐 App Tunnel (#2)</span>
+                            <span class="badge" id="appsTunnelBadge">Loading</span>
+                        </div>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
+                            Routes all hosted sites and containers to their domains.
+                        </p>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-ghost btn-sm"
+                                onclick="controlService('tunnelpanel-apps-tunnel', 'restart')">↻ Restart</button>
+                            <button class="btn btn-ghost btn-sm" onclick="viewLogs('apps')">📋 Logs</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cloudflare Config -->
+                <div class="card" style="margin-bottom:24px;">
+                    <div class="card-header">
+                        <h3>☁️ Cloudflare Configuration</h3>
+                        <button class="btn btn-ghost btn-sm" onclick="toggleCFConfig()">Edit</button>
+                    </div>
+                    <div class="card-body" id="cfConfigBody">
+                        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px;">
+                            <div>
+                                <div
+                                    style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">
+                                    API Token</div>
+                                <div id="cfToken" style="font-family:'JetBrains Mono', monospace; font-size:0.85rem;">--
+                                </div>
+                            </div>
+                            <div>
+                                <div
+                                    style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">
+                                    Zone</div>
+                                <div id="cfZone">--</div>
+                            </div>
+                            <div>
+                                <div
+                                    style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">
+                                    Panel Domain</div>
+                                <div id="cfPanelDomain" style="color:var(--text-accent);">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ingress Rules Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🔀 Ingress Rules</h3>
+                        <button class="btn btn-primary btn-sm" onclick="showAddIngressModal()">+ Add Rule</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="ingress-table" id="ingressTable">
+                                <thead>
+                                    <tr>
+                                        <th>Domain</th>
+                                        <th>Target</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ingressBody">
+                                    <tr>
+                                        <td colspan="5" class="empty-state">
+                                            <div class="spinner" style="margin:0 auto;"></div>
+                                            <p style="margin-top:8px;">Loading ingress rules...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Ingress Rule Modal -->
+    <div class="modal-overlay" id="addIngressModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Ingress Rule</h3>
+                <button class="modal-close" onclick="closeModal('addIngressModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="ingressDomain">Domain</label>
+                    <input type="text" class="form-control" id="ingressDomain" placeholder="app.yourdomain.com">
+                </div>
+                <div class="form-group">
+                    <label for="ingressPort">Local Port</label>
+                    <input type="number" class="form-control" id="ingressPort" placeholder="8080">
+                </div>
+                <div class="form-group">
+                    <label for="ingressType">App Type</label>
+                    <select class="form-control" id="ingressType">
+                        <option value="custom">Custom</option>
+                        <option value="site">PHP Site</option>
+                        <option value="docker">Docker Container</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('addIngressModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="addIngressRule()">Add Rule</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Load tunnel status
+        async function loadTunnelStatus() {
+            const data = await API.get('/tunnels/status');
+            if (!data.success) return;
+
+            const s = data.data;
+            updateBadge('panelTunnelBadge', s.panel_tunnel.running);
+            updateBadge('appsTunnelBadge', s.apps_tunnel.running);
+        }
+
+        function updateBadge(id, running) {
+            const el = document.getElementById(id);
+            el.className = 'badge ' + (running ? 'badge-success' : 'badge-danger');
+            el.textContent = running ? 'Connected' : 'Disconnected';
+        }
+
+        // Load Cloudflare config
+        async function loadCFConfig() {
+            const data = await API.get('/tunnels/cloudflare');
+            if (!data.success) return;
+            document.getElementById('cfToken').textContent = data.data.api_token || 'Not configured';
+            document.getElementById('cfZone').textContent = data.data.zone_name || 'Not configured';
+            document.getElementById('cfPanelDomain').textContent = data.data.panel_domain || 'Not configured';
+        }
+
+        // Load ingress rules
+        async function loadIngressRules() {
+            const data = await API.get('/tunnels/ingress');
+            const body = document.getElementById('ingressBody');
+
+            if (!data.success || !data.data || data.data.length === 0) {
+                body.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="icon">🔗</div><p>No ingress rules yet. Add a site or Docker app to auto-create rules.</p></div></td></tr>';
+                return;
+            }
+
+            body.innerHTML = data.data.map(r => `
+                <tr>
+                    <td><span class="domain">${r.domain}</span></td>
+                    <td><span class="target">${r.target}</span></td>
+                    <td><span class="badge badge-info">${r.app_type}</span></td>
+                    <td><span class="badge ${r.enabled ? 'badge-success' : 'badge-danger'}">${r.enabled ? 'Active' : 'Disabled'}</span></td>
+                    <td>
+                        <button class="btn btn-ghost btn-sm" onclick="removeIngress('${r.domain}')">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Add ingress rule
+        async function addIngressRule() {
+            const domain = document.getElementById('ingressDomain').value;
+            const port = parseInt(document.getElementById('ingressPort').value);
+            const appType = document.getElementById('ingressType').value;
+
+            if (!domain || !port) {
+                showToast('Domain and port are required', 'error');
+                return;
+            }
+
+            const data = await API.post('/tunnels/ingress', { domain, port, app_type: appType, app_id: 0 });
+            if (data.success) {
+                showToast('Ingress rule added: ' + domain, 'success');
+                closeModal('addIngressModal');
+                loadIngressRules();
+            } else {
+                showToast(data.error || 'Failed to add rule', 'error');
+            }
+        }
+
+        // Remove ingress rule
+        async function removeIngress(domain) {
+            if (!confirm('Remove ingress rule for ' + domain + '?')) return;
+            const data = await API.delete('/tunnels/ingress/' + domain);
+            if (data.success) {
+                showToast('Removed: ' + domain, 'success');
+                loadIngressRules();
+            } else {
+                showToast(data.error || 'Failed', 'error');
+            }
+        }
+
+        // Service control
+        async function controlService(name, action) {
+            const data = await API.post('/services/' + name + '/' + action, {});
+            if (data.success) {
+                showToast(name + ' ' + action + ' successful', 'success');
+                setTimeout(loadTunnelStatus, 2000);
+            } else {
+                showToast(data.error, 'error');
+            }
+        }
+
+        function showAddIngressModal() {
+            document.getElementById('addIngressModal').classList.add('active');
+        }
+
+        // Init
+        loadTunnelStatus();
+        loadCFConfig();
+        loadIngressRules();
+        setInterval(loadTunnelStatus, 15000);
+    </script>
+</body>
+
+</html>
+{{end}}

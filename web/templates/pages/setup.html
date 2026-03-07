@@ -1,0 +1,126 @@
+{{define "setup.html"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+
+<body>
+    <div class="login-page">
+        <div class="login-card" style="width: 520px;">
+            <div class="logo">
+                <div class="icon">⚡</div>
+                <h2>Welcome to TunnelPanel</h2>
+                <p>Let's set up your server control panel</p>
+            </div>
+
+            <div class="login-error" id="setupError"></div>
+
+            <form id="setupForm" onsubmit="handleSetup(event)">
+                <h3 style="margin-bottom:12px; font-size:1rem;">Admin Account</h3>
+
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="admin" required
+                        autofocus value="admin">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" class="form-control" id="password" name="password"
+                        placeholder="Strong password" required minlength="8">
+                </div>
+
+                <div class="form-group">
+                    <label for="password2">Confirm Password</label>
+                    <input type="password" class="form-control" id="password2" placeholder="Repeat password" required
+                        minlength="8">
+                </div>
+
+                <hr style="border-color: var(--border-color); margin: 20px 0;">
+
+                <h3 style="margin-bottom:12px; font-size:1rem;">Cloudflare Integration <span
+                        style="color:var(--text-muted); font-weight:400; font-size:0.8rem;">(optional, can configure
+                        later)</span></h3>
+
+                <div class="form-group">
+                    <label for="cf_token">API Token</label>
+                    <input type="password" class="form-control" id="cf_token" placeholder="Cloudflare API Token">
+                </div>
+
+                <div class="form-group">
+                    <label for="cf_account">Account ID</label>
+                    <input type="text" class="form-control" id="cf_account" placeholder="Cloudflare Account ID">
+                </div>
+
+                <div class="form-group">
+                    <label for="panel_domain">Panel Domain</label>
+                    <input type="text" class="form-control" id="panel_domain" placeholder="panel.yourdomain.com">
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="setupBtn"
+                    style="width:100%; justify-content:center; margin-top:12px;">
+                    <span id="setupBtnText">Complete Setup</span>
+                    <div class="spinner" id="setupSpinner" style="display:none;"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        async function handleSetup(e) {
+            e.preventDefault();
+            const errorEl = document.getElementById('setupError');
+            const pw1 = document.getElementById('password').value;
+            const pw2 = document.getElementById('password2').value;
+
+            if (pw1 !== pw2) {
+                errorEl.textContent = 'Passwords do not match';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const btn = document.getElementById('setupBtn');
+            btn.disabled = true;
+            document.getElementById('setupSpinner').style.display = 'block';
+            document.getElementById('setupBtnText').textContent = 'Setting up...';
+            errorEl.style.display = 'none';
+
+            try {
+                const resp = await fetch('/api/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('username').value,
+                        password: pw1,
+                        cloudflare_api_token: document.getElementById('cf_token').value,
+                        cloudflare_account_id: document.getElementById('cf_account').value,
+                        panel_domain: document.getElementById('panel_domain').value
+                    })
+                });
+
+                const data = await resp.json();
+                if (data.success) {
+                    window.location.href = '/dashboard';
+                } else {
+                    errorEl.textContent = data.error || 'Setup failed';
+                    errorEl.style.display = 'block';
+                }
+            } catch (err) {
+                errorEl.textContent = 'Connection error';
+                errorEl.style.display = 'block';
+            }
+
+            btn.disabled = false;
+            document.getElementById('setupSpinner').style.display = 'none';
+            document.getElementById('setupBtnText').textContent = 'Complete Setup';
+        }
+    </script>
+</body>
+
+</html>
+{{end}}
