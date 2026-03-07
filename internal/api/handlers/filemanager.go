@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 
