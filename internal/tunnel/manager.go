@@ -64,33 +64,61 @@ func (m *Manager) AddIngressRule(domain string, port int, appType string, appID 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	log.Printf("[tunnel] ── Adding ingress rule ──")
+	log.Printf("[tunnel]   Domain:  %s", domain)
+	log.Printf("[tunnel]   Target:  localhost:%d", port)
+	log.Printf("[tunnel]   Type:    %s (ID: %d)", appType, appID)
+
 	// 1. Create DNS CNAME record pointing to tunnel
-	record, err := m.cf.CreateDNSRecord(domain, m.tunnelID)
-	if err != nil {
-		return fmt.Errorf("failed to create DNS record for %s: %w", domain, err)
+	var dnsRecordID string
+	if m.cf != nil && m.tunnelID != "" {
+		log.Printf("[tunnel]   Step 1: Creating DNS CNAME → %s.cfargotunnel.com", m.tunnelID)
+		record, err := m.cf.CreateDNSRecord(domain, m.tunnelID)
+		if err != nil {
+			log.Printf("[tunnel]   ⚠ DNS creation failed: %v (continuing without DNS)", err)
+		} else {
+			dnsRecordID = record.ID
+			log.Printf("[tunnel]   ✓ DNS CNAME created (record ID: %s)", dnsRecordID)
+			// Save DNS record ID for the site
+			if appType == "site" && appID > 0 {
+				database.DB().Exec("UPDATE sites SET dns_record_id = ? WHERE id = ?", dnsRecordID, appID)
+			}
+		}
+	} else {
+		log.Printf("[tunnel]   ⚠ Cloudflare not configured (cf=%v, tunnelID=%s) — skipping DNS", m.cf != nil, m.tunnelID)
 	}
 
 	// 2. Store the ingress rule in DB
-	_, err = database.DB().Exec(
+	log.Printf("[tunnel]   Step 2: Storing ingress rule in database")
+	_, err := database.DB().Exec(
 		"INSERT INTO tunnel_ingress_rules (domain, target, app_type, app_id) VALUES (?, ?, ?, ?)",
 		domain, fmt.Sprintf("http://localhost:%d", port), appType, appID,
 	)
 	if err != nil {
-		// Rollback DNS record
-		m.cf.DeleteDNSRecord(record.ID)
+		if dnsRecordID != "" && m.cf != nil {
+			m.cf.DeleteDNSRecord(dnsRecordID)
+		}
 		return fmt.Errorf("failed to store ingress rule: %w", err)
 	}
+	log.Printf("[tunnel]   ✓ Ingress rule stored")
 
 	// 3. Regenerate tunnel config and reload
+	log.Printf("[tunnel]   Step 3: Regenerating apps tunnel config")
 	if err := m.regenerateConfig(); err != nil {
+		log.Printf("[tunnel]   ⚠ Config regeneration failed: %v", err)
 		return fmt.Errorf("failed to regenerate tunnel config: %w", err)
 	}
+	log.Printf("[tunnel]   ✓ Tunnel config regenerated")
 
+	log.Printf("[tunnel]   Step 4: Reloading apps tunnel service")
 	if err := m.reloadTunnel(); err != nil {
-		return fmt.Errorf("failed to reload tunnel: %w", err)
+		log.Printf("[tunnel]   ⚠ Tunnel reload failed: %v (service may not be running yet)", err)
+		// Don't fail — the config is written, tunnel will pick it up when started
+	} else {
+		log.Printf("[tunnel]   ✓ Tunnel service reloaded")
 	}
 
-	log.Printf("[tunnel] Added ingress: %s → localhost:%d (%s #%d)", domain, port, appType, appID)
+	log.Printf("[tunnel] ── Ingress complete: %s → localhost:%d ──", domain, port)
 	return nil
 }
 

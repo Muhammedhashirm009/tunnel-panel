@@ -53,6 +53,8 @@ func (m *Manager) CreateSite(name, domain, phpVersion string) (*Site, error) {
 		phpVersion = "8.2"
 	}
 
+	log.Printf("[sites] ═══ Creating site: %s (%s) ═══", name, domain)
+
 	// Check if domain already exists
 	var count int
 	database.DB().QueryRow("SELECT COUNT(*) FROM sites WHERE domain = ?", domain).Scan(&count)
@@ -60,36 +62,43 @@ func (m *Manager) CreateSite(name, domain, phpVersion string) (*Site, error) {
 		return nil, fmt.Errorf("domain %s already exists", domain)
 	}
 
-	// Allocate port from standalone port manager
+	// Step 1: Allocate port
+	log.Printf("[sites] Step 1: Allocating port...")
 	pm := portmanager.Get()
 	port, err := pm.Allocate("site", 0, name)
 	if err != nil {
 		return nil, fmt.Errorf("port allocation failed: %w", err)
 	}
+	log.Printf("[sites]   ✓ Port allocated: %d", port)
 
-	// Create document root
+	// Step 2: Create document root
+	log.Printf("[sites] Step 2: Creating document root...")
 	docRoot := filepath.Join(m.sitesRoot, name)
 	if err := os.MkdirAll(docRoot, 0755); err != nil {
-		pm.Release(port) // cleanup
+		pm.Release(port)
 		return nil, fmt.Errorf("cannot create doc root: %w", err)
 	}
+	log.Printf("[sites]   ✓ Document root: %s", docRoot)
 
 	// Create default index.php
 	indexContent := fmt.Sprintf("<!DOCTYPE html>\n<html>\n<head><title>%s</title></head>\n<body>\n<h1>Welcome to %s</h1>\n<p>Domain: %s</p>\n<p>PHP Version: <?php echo phpversion(); ?></p>\n<p>Managed by TunnelPanel</p>\n</body>\n</html>", name, name, domain)
 	os.WriteFile(filepath.Join(docRoot, "index.php"), []byte(indexContent), 0644)
 
-	// Generate Nginx vhost
+	// Step 3: Generate Nginx vhost
+	log.Printf("[sites] Step 3: Creating Nginx config (listening on port %d)...", port)
 	confPath := filepath.Join(m.nginxConf, name+".conf")
 	vhostContent := GenerateNginxVhost(domain, docRoot, phpVersion, port)
 	if err := os.WriteFile(confPath, []byte(vhostContent), 0644); err != nil {
 		pm.Release(port)
 		return nil, fmt.Errorf("cannot write nginx config: %w", err)
 	}
+	log.Printf("[sites]   ✓ Nginx config: %s", confPath)
 
 	// Set ownership
 	exec.Command("chown", "-R", "www-data:www-data", docRoot).Run()
 
-	// Insert into database
+	// Step 4: Insert into database
+	log.Printf("[sites] Step 4: Saving to database...")
 	result, err := database.DB().Exec(
 		`INSERT INTO sites (name, domain, document_root, php_version, port, nginx_config_path, status, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
@@ -100,20 +109,30 @@ func (m *Manager) CreateSite(name, domain, phpVersion string) (*Site, error) {
 		os.Remove(confPath)
 		return nil, fmt.Errorf("database error: %w", err)
 	}
-
 	siteID, _ := result.LastInsertId()
-
-	// Update port allocation with actual site ID
 	pm.UpdateAppID(port, int(siteID))
+	log.Printf("[sites]   ✓ Saved (site ID: %d)", siteID)
 
-	// Add tunnel ingress rule (domain → localhost:port)
-	tunnelErr := m.addTunnelIngress(domain, port, int(siteID))
-	if tunnelErr != nil {
-		log.Printf("[sites] Warning: tunnel ingress failed for %s: %v (site created but not tunneled)", domain, tunnelErr)
+	// Step 5: Reload Nginx
+	log.Printf("[sites] Step 5: Testing and reloading Nginx...")
+	if err := ReloadNginx(); err != nil {
+		log.Printf("[sites]   ⚠ Nginx reload failed: %v", err)
+	} else {
+		log.Printf("[sites]   ✓ Nginx reloaded")
 	}
 
-	// Reload Nginx
-	ReloadNginx()
+	// Step 6: Add tunnel ingress rule (domain → localhost:port)
+	log.Printf("[sites] Step 6: Adding tunnel ingress (%s → localhost:%d)...", domain, port)
+	tunnelErr := m.addTunnelIngress(domain, port, int(siteID))
+	if tunnelErr != nil {
+		log.Printf("[sites]   ⚠ Tunnel ingress failed: %v", tunnelErr)
+		log.Printf("[sites]   Site is accessible locally at http://localhost:%d but NOT via tunnel", port)
+	} else {
+		log.Printf("[sites]   ✓ Tunnel ingress configured")
+		log.Printf("[sites]   Site accessible at https://%s", domain)
+	}
+
+	log.Printf("[sites] ═══ Site created: %s (port %d) ═══", name, port)
 
 	return &Site{
 		ID:              int(siteID),
