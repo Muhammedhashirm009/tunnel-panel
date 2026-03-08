@@ -142,6 +142,7 @@ func SetupRouter(cfg *config.Config, tunnelMgr *tunnel.Manager) *gin.Engine {
 		protectedAPI.GET("/tunnels/cloudflare", tunnelHandler.GetCloudflareConfig)
 		protectedAPI.PUT("/tunnels/cloudflare", tunnelHandler.UpdateCloudflareConfig)
 		protectedAPI.GET("/tunnels/zones", tunnelHandler.ListZones)
+		protectedAPI.POST("/tunnels/setup", tunnelHandler.SetupTunnels)
 
 		// File Manager
 		protectedAPI.GET("/files/browse", fileHandler.Browse)
@@ -169,6 +170,17 @@ func SetupRouter(cfg *config.Config, tunnelMgr *tunnel.Manager) *gin.Engine {
 		portHandler := handlers.NewPortHandler()
 		protectedAPI.GET("/ports", portHandler.List)
 		protectedAPI.DELETE("/ports/:port", portHandler.Release)
+
+		// Docker Management
+		dockerHandler := handlers.NewDockerHandler(tunnelMgr)
+		protectedAPI.GET("/docker/containers", dockerHandler.ListContainers)
+		protectedAPI.POST("/docker/containers", dockerHandler.CreateContainer)
+		protectedAPI.POST("/docker/containers/:id/:action", dockerHandler.ContainerAction)
+		protectedAPI.GET("/docker/containers/:id/logs", dockerHandler.GetContainerLogs)
+		protectedAPI.GET("/docker/images", dockerHandler.ListImages)
+		protectedAPI.POST("/docker/images/pull", dockerHandler.PullImage)
+		protectedAPI.POST("/docker/deploy", dockerHandler.DeployFromRepo)
+		protectedAPI.GET("/docker/deploy/:id/status", dockerHandler.GetDeployStatus)
 	}
 
 	return r

@@ -81,7 +81,11 @@
     <div class="login-page">
         <div class="login-card" style="width: 560px;">
             <div class="logo">
-                <div class="icon">⚡</div>
+                <div class="icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                        <line x1="4" x2="4" y1="22" y2="15" />
+                    </svg></div>
                 <h2>Welcome to TunnelPanel</h2>
                 <p>Let's set up your server control panel</p>
             </div>
@@ -95,7 +99,7 @@
             <div class="login-error" id="setupError"></div>
 
             <form id="setupForm" onsubmit="handleSetup(event)">
-                <h3 style="margin-bottom:12px; font-size:1rem;">👤 Admin Account</h3>
+                <h3 style="margin-bottom:12px; font-size:1rem;">Admin Account</h3>
 
                 <div class="form-group">
                     <label for="username">Username</label>
@@ -117,7 +121,7 @@
 
                 <hr style="border-color: var(--border-color); margin: 20px 0;">
 
-                <h3 style="margin-bottom:4px; font-size:1rem;">☁️ Cloudflare Integration</h3>
+                <h3 style="margin-bottom:4px; font-size:1rem;">Cloudflare Integration</h3>
                 <p class="help-text" style="margin-bottom:16px;">
                     Tunnels will be auto-created. <a href="https://dash.cloudflare.com/profile/api-tokens"
                         target="_blank">Create API Token →</a>
@@ -159,7 +163,7 @@
 
                 <button type="submit" class="btn btn-primary" id="setupBtn"
                     style="width:100%; justify-content:center; margin-top:16px;">
-                    <span id="setupBtnText">🚀 Complete Setup</span>
+                    <span id="setupBtnText">Complete Setup</span>
                     <div class="spinner" id="setupSpinner" style="display:none;"></div>
                 </button>
 
@@ -267,7 +271,7 @@
                     addLog('❌ ' + (data.error || 'Setup failed'), 'error');
                     btn.disabled = false;
                     document.getElementById('setupSpinner').style.display = 'none';
-                    document.getElementById('setupBtnText').textContent = '🚀 Complete Setup';
+                    document.getElementById('setupBtnText').textContent = 'Complete Setup';
                 }
             } catch (err) {
                 errorEl.textContent = 'Connection error: ' + err.message;

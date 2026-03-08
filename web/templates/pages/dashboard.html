@@ -8,6 +8,7 @@
     <title>{{.Title}}</title>
     <meta name="description" content="TunnelPanel Dashboard — System Overview">
     <link rel="stylesheet" href="/static/css/main.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 
 <body>
@@ -24,7 +25,7 @@
                 <!-- Stats Grid -->
                 <div class="stats-grid" id="statsGrid">
                     <div class="stat-card">
-                        <div class="stat-icon cpu">⚡</div>
+                        <div class="stat-icon cpu"><i data-lucide="cpu" style="width:20px;height:20px;"></i></div>
                         <div class="stat-value" id="cpuValue">--</div>
                         <div class="stat-label">CPU Usage</div>
                         <div class="stat-bar">
@@ -33,7 +34,8 @@
                     </div>
 
                     <div class="stat-card">
-                        <div class="stat-icon ram">🧠</div>
+                        <div class="stat-icon ram"><i data-lucide="memory-stick" style="width:20px;height:20px;"></i>
+                        </div>
                         <div class="stat-value" id="ramValue">--</div>
                         <div class="stat-label">Memory Usage</div>
                         <div class="stat-bar">
@@ -42,7 +44,8 @@
                     </div>
 
                     <div class="stat-card">
-                        <div class="stat-icon disk">💾</div>
+                        <div class="stat-icon disk"><i data-lucide="hard-drive" style="width:20px;height:20px;"></i>
+                        </div>
                         <div class="stat-value" id="diskValue">--</div>
                         <div class="stat-label">Disk Usage</div>
                         <div class="stat-bar">
@@ -51,7 +54,8 @@
                     </div>
 
                     <div class="stat-card">
-                        <div class="stat-icon network">🌐</div>
+                        <div class="stat-icon network"><i data-lucide="network" style="width:20px;height:20px;"></i>
+                        </div>
                         <div class="stat-value" id="networkValue">--</div>
                         <div class="stat-label">Network I/O</div>
                         <div class="stat-bar">
@@ -110,7 +114,8 @@
                     <div class="card">
                         <div class="card-header">
                             <h3>Services</h3>
-                            <button class="btn btn-ghost btn-sm" onclick="loadServices()">↻ Refresh</button>
+                            <button class="btn btn-ghost btn-sm" onclick="loadServices()"><i data-lucide="refresh-cw"
+                                    style="width:14px;height:14px;"></i> Refresh</button>
                         </div>
                         <div class="card-body">
                             <div class="services-grid" id="servicesGrid">
@@ -126,14 +131,19 @@
                 <!-- Tunnel Status -->
                 <div class="card">
                     <div class="card-header">
-                        <h3>🔗 Tunnel Status</h3>
-                        <a href="/tunnels" class="btn btn-ghost btn-sm">Manage →</a>
+                        <h3><i data-lucide="cable"
+                                style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                            Tunnel Status</h3>
+                        <a href="/tunnels" class="btn btn-ghost btn-sm">Manage <i data-lucide="arrow-right"
+                                style="width:14px;height:14px;"></i></a>
                     </div>
                     <div class="card-body" id="tunnelStatusArea">
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                             <div class="tunnel-status-card">
                                 <div class="tunnel-header">
-                                    <span class="tunnel-name">🛡️ Panel Tunnel</span>
+                                    <span class="tunnel-name"><i data-lucide="shield"
+                                            style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>
+                                        Panel Tunnel</span>
                                     <span class="badge" id="panelTunnelBadge">--</span>
                                 </div>
                                 <p style="font-size:0.85rem; color:var(--text-secondary);">Tunnels the control panel UI
@@ -141,7 +151,9 @@
                             </div>
                             <div class="tunnel-status-card">
                                 <div class="tunnel-header">
-                                    <span class="tunnel-name">🌐 App Tunnel</span>
+                                    <span class="tunnel-name"><i data-lucide="globe"
+                                            style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>
+                                        App Tunnel</span>
                                     <span class="badge" id="appsTunnelBadge">--</span>
                                 </div>
                                 <p style="font-size:0.85rem; color:var(--text-secondary);">Routes all hosted apps
@@ -159,6 +171,7 @@
     <script src="/static/js/api.js"></script>
     <script src="/static/js/app.js"></script>
     <script src="/static/js/dashboard.js"></script>
+    <script>lucide.createIcons();</script>
 </body>
 
 </html>

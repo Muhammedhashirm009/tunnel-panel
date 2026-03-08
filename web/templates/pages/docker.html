@@ -7,6 +7,166 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}}</title>
     <link rel="stylesheet" href="/static/css/main.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        .deploy-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05));
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .deploy-card .deploy-info h3 {
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+
+        .deploy-card .deploy-info p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .container-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 16px;
+        }
+
+        .container-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: all var(--transition-normal);
+        }
+
+        .container-card:hover {
+            border-color: var(--border-active);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .container-card .cc-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .container-card .cc-name {
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .container-card .cc-image {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .container-card .cc-meta {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .container-card .cc-meta-item {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .container-card .cc-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .deploy-log {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            margin-top: 12px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .deploy-log.active {
+            display: block;
+        }
+
+        .log-viewer {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.6;
+        }
+
+        .env-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .env-row input {
+            flex: 1;
+        }
+
+        .env-row button {
+            flex-shrink: 0;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .status-dot.running {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.exited,
+        .status-dot.stopped {
+            background: var(--accent-red);
+        }
+
+        .status-dot.created,
+        .status-dot.paused {
+            background: var(--accent-amber);
+        }
+    </style>
 </head>
 
 <body>
@@ -15,28 +175,577 @@
         <main class="main-content">
             <div class="page-header">
                 <h1>Docker</h1>
-                <p>Manage containers with auto-tunneling</p>
+                <p>Deploy and manage containerized applications</p>
             </div>
+
             <div class="page-body">
-                <div class="card">
+                <!-- Deploy Card -->
+                <div class="deploy-card">
+                    <div class="deploy-info">
+                        <h3><i data-lucide="rocket"
+                                style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                            Deploy a Service</h3>
+                        <p>Deploy from a Git repository or Docker image with auto-tunneling to your domain</p>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-primary" onclick="showDeployModal('repo')"><i data-lucide="git-branch"
+                                style="width:14px;height:14px;"></i> From Repo</button>
+                        <button class="btn btn-ghost" onclick="showDeployModal('image')"><i data-lucide="container"
+                                style="width:14px;height:14px;"></i> From Image</button>
+                    </div>
+                </div>
+
+                <!-- Running Services -->
+                <div class="card" style="margin-bottom:24px;">
                     <div class="card-header">
-                        <h3>Containers</h3>
-                        <button class="btn btn-primary btn-sm" disabled>+ Create Container (Phase 3)</button>
+                        <h3><i data-lucide="layers"
+                                style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                            Services</h3>
+                        <button class="btn btn-ghost btn-sm" onclick="loadContainers()"><i data-lucide="refresh-cw"
+                                style="width:14px;height:14px;"></i> Refresh</button>
                     </div>
                     <div class="card-body">
-                        <div class="empty-state">
-                            <div class="icon">🐳</div>
-                            <p>Docker management will be available in Phase 3</p>
-                            <p style="font-size:0.8rem; color:var(--text-muted);">Deploy containers with auto-tunnel,
-                                manage images, Docker Compose stacks.</p>
+                        <div class="container-grid" id="containerGrid">
+                            <div class="empty-state" style="grid-column: 1 / -1;">
+                                <div class="spinner" style="margin:0 auto;"></div>
+                                <p style="margin-top:8px;">Loading containers...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Images -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i data-lucide="box"
+                                style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                            Images</h3>
+                        <button class="btn btn-ghost btn-sm" onclick="showPullModal()"><i data-lucide="download"
+                                style="width:14px;height:14px;"></i> Pull Image</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Image</th>
+                                        <th>ID</th>
+                                        <th>Size</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="imagesBody">
+                                    <tr>
+                                        <td colspan="4">
+                                            <div class="empty-state">
+                                                <p>Loading...</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
     </div>
+
+    <!-- Deploy from Repo Modal -->
+    <div class="modal-overlay" id="deployRepoModal">
+        <div class="modal" style="width:600px; max-width:95vw;">
+            <div class="modal-header">
+                <h3 id="deployModalTitle"><i data-lucide="git-branch"
+                        style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                    Deploy from Repository</h3>
+                <button class="modal-close" id="deployModalClose" onclick="closeModal('deployRepoModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="deployFormFields">
+                    <div class="form-group">
+                        <label>Repository URL</label>
+                        <input type="text" class="form-control" id="deployRepoUrl"
+                            placeholder="https://github.com/user/repo.git">
+                        <small style="color:var(--text-muted);">HTTPS URL to a Git repository with a Dockerfile</small>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label>Service Name</label>
+                            <input type="text" class="form-control" id="deployName" placeholder="my-app">
+                        </div>
+                        <div class="form-group">
+                            <label>Branch</label>
+                            <input type="text" class="form-control" id="deployBranch" placeholder="main" value="main">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label>Host Port</label>
+                            <input type="number" class="form-control" id="deployPort" placeholder="Auto-assign">
+                            <small style="color:var(--text-muted);">External port on server</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Internal Port</label>
+                            <input type="number" class="form-control" id="deployInternalPort" placeholder="e.g. 5000">
+                            <small style="color:var(--text-muted);">Port app listens on</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Domain (optional)</label>
+                            <input type="text" class="form-control" id="deployDomain" placeholder="app.domain.com">
+                            <small style="color:var(--text-muted);">Auto-tunneled</small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Environment Variables</label>
+                        <div id="envVarsContainer">
+                            <div class="env-row">
+                                <input type="text" class="form-control" placeholder="KEY"
+                                    style="font-family:'JetBrains Mono',monospace;">
+                                <input type="text" class="form-control" placeholder="VALUE"
+                                    style="font-family:'JetBrains Mono',monospace;">
+                                <button class="btn btn-ghost btn-sm" onclick="removeEnvRow(this)"><i data-lucide="x"
+                                        style="width:14px;height:14px;"></i></button>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost btn-sm" onclick="addEnvRow()" style="margin-top:4px;"><i
+                                data-lucide="plus" style="width:14px;height:14px;"></i> Add Variable</button>
+                    </div>
+                </div>
+
+                <!-- Deploy Progress -->
+                <div class="deploy-log" id="deployLog"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" id="deployCancelBtn"
+                    onclick="closeModal('deployRepoModal')">Cancel</button>
+                <button class="btn btn-primary" id="deployBtn" onclick="doDeploy()">
+                    <span id="deployBtnText"><i data-lucide="rocket" style="width:14px;height:14px;"></i> Deploy</span>
+                    <div class="spinner" id="deploySpinner" style="display:none;width:16px;height:16px;"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deploy from Image Modal -->
+    <div class="modal-overlay" id="deployImageModal">
+        <div class="modal" style="width:560px; max-width:95vw;">
+            <div class="modal-header">
+                <h3><i data-lucide="container"
+                        style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                    Deploy from Image</h3>
+                <button class="modal-close" onclick="closeModal('deployImageModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Docker Image</label>
+                    <input type="text" class="form-control" id="imageDeployImage" placeholder="nginx:latest">
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label>Container Name</label>
+                        <input type="text" class="form-control" id="imageDeployName" placeholder="my-service">
+                    </div>
+                    <div class="form-group">
+                        <label>Port Mapping</label>
+                        <input type="text" class="form-control" id="imageDeployPorts" placeholder="8080:80">
+                        <small style="color:var(--text-muted);">host:container</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Domain (optional)</label>
+                    <input type="text" class="form-control" id="imageDeployDomain" placeholder="app.yourdomain.com">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('deployImageModal')">Cancel</button>
+                <button class="btn btn-primary" id="imageDeployBtn" onclick="doImageDeploy()">Deploy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container Logs Modal -->
+    <div class="modal-overlay" id="logsModal">
+        <div class="modal" style="width:700px; max-width:95vw;">
+            <div class="modal-header">
+                <h3 id="logsTitle"><i data-lucide="scroll-text"
+                        style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                    Container Logs</h3>
+                <button class="modal-close" onclick="closeModal('logsModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="log-viewer" id="logContent">Loading logs...</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('logsModal')">Close</button>
+                <button class="btn btn-ghost btn-sm" id="refreshLogsBtn" onclick="refreshLogs()"><i
+                        data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Refresh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pull Image Modal -->
+    <div class="modal-overlay" id="pullModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Pull Image</h3>
+                <button class="modal-close" onclick="closeModal('pullModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Image Name</label>
+                    <input type="text" class="form-control" id="pullImageName" placeholder="nginx:latest">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('pullModal')">Cancel</button>
+                <button class="btn btn-primary" id="pullBtn" onclick="pullImage()">Pull</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
     <script src="/static/js/api.js"></script>
     <script src="/static/js/app.js"></script>
+    <script>
+        let currentLogsId = '';
+
+        // Load containers
+        async function loadContainers() {
+            const data = await API.get('/docker/containers?all=true');
+            const grid = document.getElementById('containerGrid');
+
+            if (!data.success) {
+                grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><p>Docker is not available. Make sure Docker is installed and running.</p></div>';
+                return;
+            }
+
+            if (!data.data || data.data.length === 0) {
+                grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><p>No containers yet. Deploy a service to get started!</p></div>';
+                return;
+            }
+
+            grid.innerHTML = data.data.map(c => {
+                const stateClass = c.state || 'exited';
+                const portsStr = c.ports.filter(p => p.public_port > 0).map(p => `${p.public_port}:${p.private_port}`).join(', ') || 'No ports';
+                const created = new Date(c.created * 1000).toLocaleDateString();
+
+                return `<div class="container-card">
+                    <div class="cc-header">
+                        <div>
+                            <div class="cc-name"><span class="status-dot ${stateClass}"></span> ${c.name || c.id}</div>
+                            <div class="cc-image">${c.image}</div>
+                        </div>
+                        <span class="badge ${stateClass === 'running' ? 'badge-success' : 'badge-danger'}">${c.state}</span>
+                    </div>
+                    <div class="cc-meta">
+                        <span class="cc-meta-item"><i data-lucide="hash" style="width:12px;height:12px;"></i> ${c.id}</span>
+                        <span class="cc-meta-item"><i data-lucide="network" style="width:12px;height:12px;"></i> ${portsStr}</span>
+                        <span class="cc-meta-item"><i data-lucide="calendar" style="width:12px;height:12px;"></i> ${created}</span>
+                    </div>
+                    <div class="cc-actions">
+                        ${c.state === 'running'
+                        ? `<button class="btn btn-ghost btn-sm" onclick="containerAction('${c.id}', 'stop')"><i data-lucide="square" style="width:14px;height:14px;"></i> Stop</button>
+                               <button class="btn btn-ghost btn-sm" onclick="containerAction('${c.id}', 'restart')"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Restart</button>`
+                        : `<button class="btn btn-ghost btn-sm" onclick="containerAction('${c.id}', 'start')"><i data-lucide="play" style="width:14px;height:14px;"></i> Start</button>`
+                    }
+                        <button class="btn btn-ghost btn-sm" onclick="viewLogs('${c.id}', '${c.name || c.id}')"><i data-lucide="scroll-text" style="width:14px;height:14px;"></i> Logs</button>
+                        <button class="btn btn-ghost btn-sm" style="color:var(--accent-red);" onclick="containerAction('${c.id}', 'remove')"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // Container action
+        async function containerAction(id, action) {
+            if (action === 'remove' && !confirm('Remove this container? This cannot be undone.')) return;
+
+            const data = await API.post(`/docker/containers/${id}/${action}`, {});
+            if (data.success) {
+                showToast(`Container ${action} successful`, 'success');
+                setTimeout(loadContainers, 1000);
+            } else {
+                showToast(data.error || `${action} failed`, 'error');
+            }
+        }
+
+        // View logs
+        async function viewLogs(id, name) {
+            currentLogsId = id;
+            document.getElementById('logsTitle').innerHTML = `<i data-lucide="scroll-text" style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i> ${name}`;
+            document.getElementById('logContent').textContent = 'Loading...';
+            document.getElementById('logsModal').classList.add('active');
+            lucide.createIcons();
+
+            const data = await API.get(`/docker/containers/${id}/logs?tail=200`);
+            if (data.success) {
+                document.getElementById('logContent').textContent = data.data.logs || '(no logs)';
+                document.getElementById('logContent').scrollTop = document.getElementById('logContent').scrollHeight;
+            } else {
+                document.getElementById('logContent').textContent = 'Error: ' + (data.error || 'Failed to load logs');
+            }
+        }
+
+        async function refreshLogs() {
+            if (!currentLogsId) return;
+            const data = await API.get(`/docker/containers/${currentLogsId}/logs?tail=200`);
+            if (data.success) {
+                document.getElementById('logContent').textContent = data.data.logs || '(no logs)';
+                document.getElementById('logContent').scrollTop = document.getElementById('logContent').scrollHeight;
+            }
+        }
+
+        // Load images
+        async function loadImages() {
+            const data = await API.get('/docker/images');
+            const body = document.getElementById('imagesBody');
+
+            if (!data.success || !data.data || data.data.length === 0) {
+                body.innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>No local images</p></div></td></tr>';
+                return;
+            }
+
+            body.innerHTML = data.data.map(img => {
+                const tags = (img.tags || []).filter(t => t !== '<none>:<none>').join(', ') || '<none>';
+                const size = formatBytes(img.size);
+                const created = new Date(img.created * 1000).toLocaleDateString();
+                return `<tr>
+                    <td><strong style="font-family:'JetBrains Mono',monospace; font-size:0.85rem;">${tags}</strong></td>
+                    <td style="font-family:'JetBrains Mono',monospace; font-size:0.8rem; color:var(--text-muted);">${img.id}</td>
+                    <td style="color:var(--text-muted);">${size}</td>
+                    <td style="color:var(--text-muted); font-size:0.85rem;">${created}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // Deploy modal
+        let deployMode = 'repo';
+        function showDeployModal(mode) {
+            deployMode = mode;
+            if (mode === 'repo') {
+                document.getElementById('deployRepoModal').classList.add('active');
+            } else {
+                document.getElementById('deployImageModal').classList.add('active');
+            }
+            lucide.createIcons();
+        }
+
+        // Env vars management
+        function addEnvRow() {
+            const container = document.getElementById('envVarsContainer');
+            const row = document.createElement('div');
+            row.className = 'env-row';
+            row.innerHTML = `
+                <input type="text" class="form-control" placeholder="KEY" style="font-family:'JetBrains Mono',monospace;">
+                <input type="text" class="form-control" placeholder="VALUE" style="font-family:'JetBrains Mono',monospace;">
+                <button class="btn btn-ghost btn-sm" onclick="removeEnvRow(this)"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+            `;
+            container.appendChild(row);
+            lucide.createIcons();
+        }
+
+        function removeEnvRow(btn) {
+            const container = document.getElementById('envVarsContainer');
+            if (container.children.length > 1) {
+                btn.closest('.env-row').remove();
+            }
+        }
+
+        function getEnvVars() {
+            const rows = document.querySelectorAll('#envVarsContainer .env-row');
+            const vars = [];
+            rows.forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                const key = inputs[0].value.trim();
+                const val = inputs[1].value.trim();
+                if (key) vars.push(key + '=' + val);
+            });
+            return vars;
+        }
+
+        // Deploy from repo (async with polling)
+        async function doDeploy() {
+            const repoUrl = document.getElementById('deployRepoUrl').value.trim();
+            const name = document.getElementById('deployName').value.trim();
+            const branch = document.getElementById('deployBranch').value.trim() || 'main';
+            const port = parseInt(document.getElementById('deployPort').value) || 0;
+            const internalPort = parseInt(document.getElementById('deployInternalPort').value) || 0;
+            const domain = document.getElementById('deployDomain').value.trim();
+            const env = getEnvVars();
+
+            if (!repoUrl || !name) {
+                showToast('Repository URL and name are required', 'error');
+                return;
+            }
+
+            // Show progress
+            const btn = document.getElementById('deployBtn');
+            const spinner = document.getElementById('deploySpinner');
+            const log = document.getElementById('deployLog');
+            btn.disabled = true;
+            spinner.style.display = 'inline-block';
+            document.getElementById('deployBtnText').textContent = 'Deploying...';
+            document.getElementById('deployModalClose').style.display = 'none';
+            document.getElementById('deployCancelBtn').style.display = 'none';
+
+            log.classList.add('active');
+            log.textContent = '→ Starting deployment...\n';
+
+            try {
+                // Start the deploy (returns immediately with deploy_id)
+                const data = await API.post('/docker/deploy', {
+                    repo_url: repoUrl,
+                    branch: branch,
+                    name: name,
+                    port: port,
+                    internal_port: internalPort,
+                    env: env,
+                    tunnel_domain: domain,
+                });
+
+                if (!data.success) {
+                    log.textContent += '\n✗ ' + (data.error || 'Failed to start deploy') + '\n';
+                    resetDeployUI();
+                    return;
+                }
+
+                const deployId = data.data.deploy_id;
+                log.textContent += '✓ Deploy started (ID: ' + deployId + ')\n';
+                log.textContent += '→ Port: ' + data.data.port + '\n\n';
+
+                // Poll for status
+                const poll = setInterval(async () => {
+                    try {
+                        const status = await API.get('/docker/deploy/' + deployId + '/status');
+                        if (!status.success) return;
+
+                        const s = status.data;
+
+                        // Update log content with full accumulated log
+                        if (s.log) {
+                            log.textContent = s.log;
+                            log.scrollTop = log.scrollHeight;
+                        }
+
+                        // Check if done or failed
+                        if (s.status === 'done') {
+                            clearInterval(poll);
+                            showToast('Deployed: ' + name, 'success');
+                            loadContainers();
+                            loadImages();
+
+                            spinner.style.display = 'none';
+                            const btn = document.getElementById('deployBtn');
+                            document.getElementById('deployBtnText').textContent = 'Done';
+                            btn.onclick = () => closeModal('deployRepoModal');
+                            btn.disabled = false;
+
+                            document.getElementById('deployCancelBtn').style.display = 'inline-flex';
+                            document.getElementById('deployCancelBtn').textContent = 'Close';
+                            document.getElementById('deployModalClose').style.display = 'block';
+                        } else if (s.status === 'failed') {
+                            clearInterval(poll);
+                            showToast('Deploy failed', 'error');
+                            resetDeployUI();
+                        }
+                    } catch (e) {
+                        // Polling error — keep trying
+                    }
+                }, 3000);
+
+            } catch (err) {
+                log.textContent += '\n✗ Connection error: ' + err.message + '\n';
+                resetDeployUI();
+            }
+        }
+
+        function resetDeployUI() {
+            const btn = document.getElementById('deployBtn');
+            btn.onclick = doDeploy;
+            btn.disabled = false;
+            document.getElementById('deploySpinner').style.display = 'none';
+            document.getElementById('deployBtnText').textContent = 'Retry';
+            document.getElementById('deployCancelBtn').style.display = 'inline-flex';
+            document.getElementById('deployModalClose').style.display = 'block';
+        }
+
+        // Deploy from image
+        async function doImageDeploy() {
+            const image = document.getElementById('imageDeployImage').value.trim();
+            const name = document.getElementById('imageDeployName').value.trim();
+            const portsStr = document.getElementById('imageDeployPorts').value.trim();
+            const domain = document.getElementById('imageDeployDomain').value.trim();
+
+            if (!image) {
+                showToast('Docker image is required', 'error');
+                return;
+            }
+
+            const ports = {};
+            if (portsStr) {
+                const parts = portsStr.split(':');
+                if (parts.length === 2) {
+                    ports[parts[1] + '/tcp'] = parts[0];
+                }
+            }
+
+            const btn = document.getElementById('imageDeployBtn');
+            btn.disabled = true;
+            btn.textContent = 'Deploying...';
+
+            const data = await API.post('/docker/containers', {
+                image: image,
+                name: name || undefined,
+                ports: ports,
+                tunnel_domain: domain,
+                restart_policy: 'unless-stopped',
+            });
+
+            if (data.success) {
+                showToast('Container deployed: ' + (data.data.name || data.data.id), 'success');
+                closeModal('deployImageModal');
+                loadContainers();
+            } else {
+                showToast(data.error || 'Deploy failed', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Deploy';
+        }
+
+        // Pull image
+        async function pullImage() {
+            const name = document.getElementById('pullImageName').value.trim();
+            if (!name) return;
+
+            const btn = document.getElementById('pullBtn');
+            btn.disabled = true;
+            btn.textContent = 'Pulling...';
+
+            const data = await API.post('/docker/images/pull', { image: name });
+            if (data.success) {
+                showToast('Image pulled: ' + name, 'success');
+                closeModal('pullModal');
+                loadImages();
+            } else {
+                showToast(data.error || 'Pull failed', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Pull';
+        }
+
+        function showPullModal() {
+            document.getElementById('pullImageName').value = '';
+            document.getElementById('pullModal').classList.add('active');
+        }
+
+        // Init
+        loadContainers();
+        loadImages();
+        lucide.createIcons();
+    </script>
 </body>
 
 </html>

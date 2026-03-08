@@ -7,10 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}}</title>
     <link rel="stylesheet" href="/static/css/main.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <style>
         .creation-log {
             background: var(--bg-primary);
-            border: 1px solid var(--glass-border);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 12px;
             font-family: 'JetBrains Mono', monospace;
@@ -41,11 +42,11 @@
         }
 
         .creation-log .success {
-            color: var(--success-color);
+            color: var(--accent-green);
         }
 
         .creation-log .error {
-            color: var(--danger-color);
+            color: var(--accent-red);
         }
 
         .creation-log .warning {
@@ -59,8 +60,8 @@
         .log-spinner {
             width: 14px;
             height: 14px;
-            border: 2px solid var(--glass-border);
-            border-top-color: var(--primary-color);
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-primary);
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
             display: inline-block;
@@ -73,8 +74,8 @@
         }
 
         .site-result {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 12px;
             margin-top: 12px;
@@ -115,7 +116,9 @@
             <div class="page-body">
                 <div class="card">
                     <div class="card-header">
-                        <h3>🌐 Sites</h3>
+                        <h3><i data-lucide="globe"
+                                style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                            Sites</h3>
                         <button class="btn btn-primary btn-sm" onclick="showCreateSiteModal()">+ Create Site</button>
                     </div>
                     <div class="card-body">
@@ -149,7 +152,9 @@
                 <!-- PHP Versions -->
                 <div class="card" style="margin-top:16px;">
                     <div class="card-header">
-                        <h3>🐘 PHP Versions</h3>
+                        <h3><i data-lucide="boxes"
+                                style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                            PHP Versions</h3>
                     </div>
                     <div class="card-body">
                         <div id="phpVersions" style="display:flex; gap:12px; flex-wrap:wrap;">Loading...</div>
@@ -163,7 +168,7 @@
     <div class="modal-overlay" id="createSiteModal">
         <div class="modal" style="width:520px;">
             <div class="modal-header">
-                <h3>🚀 Create New Site</h3>
+                <h3>Create New Site</h3>
                 <button class="modal-close" id="createModalClose" onclick="closeCreateModal()">✕</button>
             </div>
             <div class="modal-body">
@@ -196,7 +201,7 @@
 
                 <!-- Result Summary -->
                 <div class="site-result" id="siteResult">
-                    <div style="font-weight:600; margin-bottom:8px; color:var(--success-color);">✅ Site Created
+                    <div style="font-weight:600; margin-bottom:8px; color:var(--accent-green);">Site Created
                         Successfully</div>
                     <div class="result-row">
                         <span class="result-label">Port</span>
@@ -219,7 +224,7 @@
             <div class="modal-footer">
                 <button class="btn btn-ghost" id="cancelBtn" onclick="closeCreateModal()">Cancel</button>
                 <button class="btn btn-primary" id="createBtn" onclick="createSite()">
-                    <span id="createBtnText">🚀 Create Site</span>
+                    <span id="createBtnText">Create Site</span>
                     <div class="log-spinner" id="createSpinner" style="display:none;"></div>
                 </button>
             </div>
@@ -242,7 +247,7 @@
             let icon = '';
             if (type === 'success') icon = '<span class="step-icon">✓</span>';
             else if (type === 'error') icon = '<span class="step-icon">✗</span>';
-            else if (type === 'warning') icon = '<span class="step-icon">⚠</span>';
+            else if (type === 'warning') icon = '<span class="step-icon">!</span>';
             else if (type === 'pending') icon = '<span class="step-icon"><div class="log-spinner"></div></span>';
             else icon = '<span class="step-icon">→</span>';
 
@@ -257,7 +262,7 @@
             const last = log.lastElementChild;
             if (last) {
                 last.className = 'log-step ' + type;
-                let icon = type === 'success' ? '✓' : type === 'error' ? '✗' : type === 'warning' ? '⚠' : '→';
+                let icon = type === 'success' ? '✓' : type === 'error' ? '✗' : type === 'warning' ? '!' : '→';
                 last.innerHTML = '<span class="step-icon">' + icon + '</span><span>' + msg + '</span>';
             }
         }
@@ -267,7 +272,7 @@
             const body = document.getElementById('sitesBody');
 
             if (!data.success || !data.data || data.data.length === 0) {
-                body.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">🌐</div><p>No sites yet. Click "Create Site" to get started!</p></div></td></tr>';
+                body.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No sites yet. Click "Create Site" to get started!</p></div></td></tr>';
                 return;
             }
 
@@ -279,11 +284,12 @@
                 <td><span class="badge ${s.status === 'active' ? 'badge-success' : 'badge-danger'}">${s.status}</span></td>
                 <td>
                     <div style="display:flex; gap:4px;">
-                        <button class="btn btn-ghost btn-sm" onclick="window.location='/files?path=${encodeURIComponent(s.document_root)}'">📁 Files</button>
-                        <button class="btn btn-ghost btn-sm" onclick="deleteSite(${s.id}, '${s.name}')">🗑️</button>
+                        <button class="btn btn-ghost btn-sm" onclick="window.location='/files?path=${encodeURIComponent(s.document_root)}'"><i data-lucide="folder-open" style="width:14px;height:14px;"></i> Files</button>
+                        <button class="btn btn-ghost btn-sm" onclick="deleteSite(${s.id}, '${s.name}')"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
                     </div>
                 </td>
             </tr>`).join('');
+            lucide.createIcons();
         }
 
         async function loadPHPVersions() {
@@ -294,7 +300,7 @@
                 return;
             }
             container.innerHTML = data.data.map(v => `
-                <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:8px; padding:12px 16px; min-width:120px;">
+                <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:8px; padding:12px 16px; min-width:120px;">
                     <div style="font-weight:600;">PHP ${v.version}</div>
                     <div style="font-size:0.8rem; margin-top:4px;">
                         <span class="badge ${v.active ? 'badge-success' : 'badge-danger'}" style="font-size:0.7rem;">${v.active ? 'Active' : 'Inactive'}</span>
@@ -312,7 +318,7 @@
             document.getElementById('siteResult').classList.remove('active');
             document.getElementById('createFormFields').style.display = 'block';
             document.getElementById('createBtn').disabled = false;
-            document.getElementById('createBtnText').textContent = '🚀 Create Site';
+            document.getElementById('createBtnText').textContent = 'Create Site';
             document.getElementById('createSpinner').style.display = 'none';
             document.getElementById('cancelBtn').textContent = 'Cancel';
             creatingInProgress = false;
@@ -370,7 +376,7 @@
 
             // Make the actual API call
             addCreationLog('', '');
-            updateLastLog('⏳ Processing on server (this may take 5-10s)...', 'pending');
+            updateLastLog('Processing on server (this may take 5-10s)...', 'pending');
 
             try {
                 const data = await API.post('/sites', { name, domain, php_version: phpVersion });
@@ -378,7 +384,7 @@
                 if (data.success) {
                     updateLastLog('Server processing complete!', 'success');
                     addCreationLog('', '');
-                    addCreationLog('✅ Site created successfully!', 'success');
+                    addCreationLog('Site created successfully!', 'success');
 
                     const site = data.data;
                     if (site) {
@@ -391,7 +397,10 @@
                     }
 
                     // Update button to "Done"
-                    document.getElementById('createBtnText').textContent = '✅ Done';
+                    const btn = document.getElementById('createBtn');
+                    document.getElementById('createBtnText').textContent = 'Done';
+                    btn.onclick = closeCreateModal;
+                    btn.disabled = false;
                     document.getElementById('createSpinner').style.display = 'none';
                     document.getElementById('cancelBtn').style.display = 'inline-flex';
                     document.getElementById('cancelBtn').textContent = 'Close';
@@ -400,10 +409,12 @@
                     loadSites(); // refresh table
                 } else {
                     updateLastLog('Failed: ' + (data.error || 'Unknown error'), 'error');
-                    addCreationLog('❌ ' + (data.error || 'Site creation failed'), 'error');
+                    addCreationLog((data.error || 'Site creation failed'), 'error');
 
-                    document.getElementById('createBtn').disabled = false;
-                    document.getElementById('createBtnText').textContent = '🚀 Retry';
+                    const btn = document.getElementById('createBtn');
+                    btn.onclick = createSite;
+                    btn.disabled = false;
+                    document.getElementById('createBtnText').textContent = 'Retry';
                     document.getElementById('createSpinner').style.display = 'none';
                     document.getElementById('cancelBtn').style.display = 'inline-flex';
                     document.getElementById('createModalClose').style.display = 'block';
@@ -411,7 +422,7 @@
             } catch (err) {
                 updateLastLog('Connection error: ' + err.message, 'error');
                 document.getElementById('createBtn').disabled = false;
-                document.getElementById('createBtnText').textContent = '🚀 Retry';
+                document.getElementById('createBtnText').textContent = 'Retry';
                 document.getElementById('createSpinner').style.display = 'none';
                 document.getElementById('cancelBtn').style.display = 'inline-flex';
                 document.getElementById('createModalClose').style.display = 'block';
@@ -434,6 +445,7 @@
         // Init
         loadSites();
         loadPHPVersions();
+        lucide.createIcons();
     </script>
 </body>
 

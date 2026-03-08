@@ -1,6 +1,7 @@
 {{define "login.html"}}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,11 +9,18 @@
     <meta name="description" content="TunnelPanel — Server Control Panel Login">
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
+
 <body>
     <div class="login-page">
         <div class="login-card">
             <div class="logo">
-                <div class="icon">🚀</div>
+                <div class="icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                        <line x1="4" x2="4" y1="22" y2="15" />
+                    </svg>
+                </div>
                 <h2>TunnelPanel</h2>
                 <p>Server Control Panel</p>
             </div>
@@ -23,23 +31,25 @@
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" class="form-control" id="username" name="username"
-                           placeholder="Enter your username" autocomplete="username" required autofocus>
+                        placeholder="Enter your username" autocomplete="username" required autofocus>
                 </div>
 
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" class="form-control" id="password" name="password"
-                           placeholder="Enter your password" autocomplete="current-password" required>
+                        placeholder="Enter your password" autocomplete="current-password" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary" id="loginBtn" style="width:100%; justify-content:center; margin-top:8px;">
+                <button type="submit" class="btn btn-primary" id="loginBtn"
+                    style="width:100%; justify-content:center; margin-top:8px;">
                     <span id="loginBtnText">Sign In</span>
                     <div class="spinner" id="loginSpinner" style="display:none;"></div>
                 </button>
             </form>
 
             <p style="text-align:center; margin-top:24px; color:var(--text-muted); font-size:0.78rem;">
-                Forgot password? Use <code style="color:var(--text-accent);">tunnelpanel-cli password reset</code> via SSH
+                Forgot password? Use <code style="color:var(--text-accent);">tunnelpanel-cli password reset</code> via
+                SSH
             </p>
         </div>
     </div>
@@ -86,5 +96,6 @@
         }
     </script>
 </body>
+
 </html>
 {{end}}

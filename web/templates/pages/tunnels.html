@@ -8,6 +8,7 @@
     <title>{{.Title}}</title>
     <meta name="description" content="TunnelPanel — Tunnel & Domain Manager">
     <link rel="stylesheet" href="/static/css/main.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 
 <body>
@@ -20,12 +21,32 @@
                 <p>Manage Cloudflare tunnels and domain routing for all your apps</p>
             </div>
 
+            <!-- Tunnel Setup Banner (shown when tunnels not created) -->
+            <div id="tunnelSetupBanner" class="card"
+                style="display:none; margin:24px 32px 0; border: 1px solid var(--accent-amber); background: var(--accent-amber-glow);">
+                <div class="card-body"
+                    style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+                    <div>
+                        <h3 style="margin:0 0 4px 0;"><i data-lucide="alert-triangle"
+                                style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;color:var(--accent-amber);"></i>
+                            Tunnels Not Configured</h3>
+                        <p style="margin:0; font-size:0.85rem; color:var(--text-secondary);">Cloudflare tunnels have not
+                            been created yet. Click the button to set them up using your configured Cloudflare
+                            credentials.</p>
+                    </div>
+                    <button class="btn btn-primary" id="setupTunnelsBtn" onclick="setupTunnels()"
+                        style="white-space:nowrap;">Setup Tunnels</button>
+                </div>
+            </div>
+
             <div class="page-body">
                 <!-- Tunnel Status Cards -->
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:24px;">
                     <div class="tunnel-status-card">
                         <div class="tunnel-header">
-                            <span class="tunnel-name">🛡️ Panel Tunnel (#1)</span>
+                            <span class="tunnel-name"><i data-lucide="shield"
+                                    style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>
+                                Panel Tunnel (#1)</span>
                             <span class="badge" id="panelTunnelBadge">Loading</span>
                         </div>
                         <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
@@ -33,14 +54,18 @@
                         </p>
                         <div style="display:flex; gap:8px;">
                             <button class="btn btn-ghost btn-sm"
-                                onclick="controlService('tunnelpanel-panel-tunnel', 'restart')">↻ Restart</button>
-                            <button class="btn btn-ghost btn-sm" onclick="viewLogs('panel')">📋 Logs</button>
+                                onclick="controlService('tunnelpanel-panel-tunnel', 'restart')"><i
+                                    data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Restart</button>
+                            <button class="btn btn-ghost btn-sm" onclick="viewLogs('panel')"><i
+                                    data-lucide="scroll-text" style="width:14px;height:14px;"></i> Logs</button>
                         </div>
                     </div>
 
                     <div class="tunnel-status-card">
                         <div class="tunnel-header">
-                            <span class="tunnel-name">🌐 App Tunnel (#2)</span>
+                            <span class="tunnel-name"><i data-lucide="globe"
+                                    style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>
+                                App Tunnel (#2)</span>
                             <span class="badge" id="appsTunnelBadge">Loading</span>
                         </div>
                         <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
@@ -48,8 +73,10 @@
                         </p>
                         <div style="display:flex; gap:8px;">
                             <button class="btn btn-ghost btn-sm"
-                                onclick="controlService('tunnelpanel-apps-tunnel', 'restart')">↻ Restart</button>
-                            <button class="btn btn-ghost btn-sm" onclick="viewLogs('apps')">📋 Logs</button>
+                                onclick="controlService('tunnelpanel-apps-tunnel', 'restart')"><i
+                                    data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Restart</button>
+                            <button class="btn btn-ghost btn-sm" onclick="viewLogs('apps')"><i data-lucide="scroll-text"
+                                    style="width:14px;height:14px;"></i> Logs</button>
                         </div>
                     </div>
                 </div>
@@ -57,7 +84,9 @@
                 <!-- Cloudflare Config -->
                 <div class="card" style="margin-bottom:24px;">
                     <div class="card-header">
-                        <h3>☁️ Cloudflare Configuration</h3>
+                        <h3><i data-lucide="cloud"
+                                style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                            Cloudflare Configuration</h3>
                         <button class="btn btn-ghost btn-sm" id="cfEditBtn" onclick="toggleCFConfig()">Edit</button>
                     </div>
                     <!-- Display View -->
@@ -120,7 +149,9 @@
                 <!-- Ingress Rules Table -->
                 <div class="card">
                     <div class="card-header">
-                        <h3>🔀 Ingress Rules</h3>
+                        <h3><i data-lucide="git-branch"
+                                style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;"></i>
+                            Ingress Rules</h3>
                         <button class="btn btn-primary btn-sm" onclick="showAddIngressModal()">+ Add Rule</button>
                     </div>
                     <div class="card-body">
@@ -196,6 +227,14 @@
             const s = data.data;
             updateBadge('panelTunnelBadge', s.panel_tunnel.running);
             updateBadge('appsTunnelBadge', s.apps_tunnel.running);
+
+            // Show setup banner if both tunnels are not running
+            const banner = document.getElementById('tunnelSetupBanner');
+            if (!s.panel_tunnel.running && !s.apps_tunnel.running) {
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
         }
 
         function updateBadge(id, running) {
@@ -219,7 +258,7 @@
             const body = document.getElementById('ingressBody');
 
             if (!data.success || !data.data || data.data.length === 0) {
-                body.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="icon">🔗</div><p>No ingress rules yet. Add a site or Docker app to auto-create rules.</p></div></td></tr>';
+                body.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>No ingress rules yet. Add a site or Docker app to auto-create rules.</p></div></td></tr>';
                 return;
             }
 
@@ -230,10 +269,11 @@
                     <td><span class="badge badge-info">${r.app_type}</span></td>
                     <td><span class="badge ${r.enabled ? 'badge-success' : 'badge-danger'}">${r.enabled ? 'Active' : 'Disabled'}</span></td>
                     <td>
-                        <button class="btn btn-ghost btn-sm" onclick="removeIngress('${r.domain}')">🗑️</button>
+                        <button class="btn btn-ghost btn-sm" onclick="removeIngress('${r.domain}')"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
                     </td>
                 </tr>
             `).join('');
+            lucide.createIcons();
         }
 
         // Add ingress rule
@@ -328,6 +368,24 @@
             }
         }
 
+        // Setup tunnels via API
+        async function setupTunnels() {
+            const btn = document.getElementById('setupTunnelsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Setting up...';
+
+            const data = await API.post('/tunnels/setup', {});
+            if (data.success) {
+                showToast('Tunnels created successfully! Services are starting...', 'success');
+                document.getElementById('tunnelSetupBanner').style.display = 'none';
+                setTimeout(loadTunnelStatus, 3000);
+            } else {
+                showToast(data.error || 'Tunnel setup failed', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Setup Tunnels';
+            }
+        }
+
         // View tunnel logs
         function viewLogs(type) {
             showToast('Opening logs for ' + type + ' tunnel...', 'info');
@@ -339,6 +397,7 @@
         loadCFConfig();
         loadIngressRules();
         setInterval(loadTunnelStatus, 15000);
+        lucide.createIcons();
     </script>
 </body>
 

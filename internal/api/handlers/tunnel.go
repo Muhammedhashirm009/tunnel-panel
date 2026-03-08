@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -166,4 +167,49 @@ func (h *TunnelHandler) ListZones(c *gin.Context) {
 	}
 
 	httputil.Success(c, zones)
+}
+
+// SetupTunnels handles POST /api/tunnels/setup — creates both tunnels via Cloudflare API
+func (h *TunnelHandler) SetupTunnels(c *gin.Context) {
+	// Read Cloudflare config from DB
+	var apiToken, accountID, zoneID, zoneName, panelDomain string
+	err := database.DB().QueryRow(
+		"SELECT COALESCE(api_token,''), COALESCE(account_id,''), COALESCE(zone_id,''), COALESCE(zone_name,''), COALESCE(panel_domain,'') FROM cloudflare_config WHERE id = 1",
+	).Scan(&apiToken, &accountID, &zoneID, &zoneName, &panelDomain)
+
+	if err != nil || apiToken == "" {
+		httputil.Error(c, http.StatusBadRequest, "Cloudflare credentials not configured. Please set them first.")
+		return
+	}
+	if panelDomain == "" {
+		httputil.Error(c, http.StatusBadRequest, "Panel domain not configured. Please set it in Cloudflare config.")
+		return
+	}
+
+	// Create a fresh Cloudflare client
+	cf := tunnel.NewCloudflareClient(apiToken, accountID, zoneID, zoneName)
+
+	// Create a temporary manager for setup
+	dataDir := h.cfg.DataDir
+	if dataDir == "" {
+		dataDir = "/etc/tunnelpanel"
+	}
+	setupMgr := tunnel.NewManager(cf, nil, dataDir, "", "")
+
+	log.Printf("[tunnel] Setting up tunnels for domain: %s", panelDomain)
+	result, setupErr := setupMgr.SetupTunnels(panelDomain)
+	if setupErr != nil {
+		log.Printf("[tunnel] Tunnel setup failed: %v", setupErr)
+		httputil.Error(c, http.StatusInternalServerError, "Tunnel setup failed: "+setupErr.Error())
+		return
+	}
+
+	// Update config with tunnel IDs
+	h.cfg.Update(func(cfg *config.Config) {
+		cfg.PanelTunnelID = result.PanelTunnelID
+		cfg.AppsTunnelID = result.AppsTunnelID
+	})
+
+	log.Printf("[tunnel] Tunnels created successfully: panel=%s, apps=%s", result.PanelTunnelID, result.AppsTunnelID)
+	httputil.Success(c, result)
 }

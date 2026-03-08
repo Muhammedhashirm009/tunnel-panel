@@ -1,50 +1,56 @@
 {{define "sidebar"}}
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-        <div class="logo-icon">🚀</div>
+        <div class="logo-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                <line x1="4" x2="4" y1="22" y2="15" />
+            </svg>
+        </div>
         <span class="logo-text">TunnelPanel</span>
     </div>
 
     <nav class="sidebar-nav">
         <div class="sidebar-section-title">Overview</div>
         <a href="/dashboard" class="sidebar-link {{if eq .Active " dashboard"}}active{{end}}">
-            <span class="icon">📊</span>
+            <span class="icon"><i data-lucide="layout-dashboard"></i></span>
             <span>Dashboard</span>
         </a>
 
         <div class="sidebar-section-title">Hosting</div>
         <a href="/sites" class="sidebar-link {{if eq .Active " sites"}}active{{end}}">
-            <span class="icon">🌐</span>
+            <span class="icon"><i data-lucide="globe"></i></span>
             <span>Websites</span>
         </a>
         <a href="/docker" class="sidebar-link {{if eq .Active " docker"}}active{{end}}">
-            <span class="icon">🐳</span>
+            <span class="icon"><i data-lucide="container"></i></span>
             <span>Docker</span>
         </a>
         <a href="/databases" class="sidebar-link {{if eq .Active " databases"}}active{{end}}">
-            <span class="icon">🗄️</span>
+            <span class="icon"><i data-lucide="database"></i></span>
             <span>Databases</span>
         </a>
 
         <div class="sidebar-section-title">Network</div>
         <a href="/tunnels" class="sidebar-link {{if eq .Active " tunnels"}}active{{end}}">
-            <span class="icon">🔗</span>
+            <span class="icon"><i data-lucide="cable"></i></span>
             <span>Tunnels</span>
         </a>
 
         <div class="sidebar-section-title">Tools</div>
         <a href="/files" class="sidebar-link {{if eq .Active " files"}}active{{end}}">
-            <span class="icon">📁</span>
+            <span class="icon"><i data-lucide="folder"></i></span>
             <span>File Manager</span>
         </a>
         <a href="/terminal" class="sidebar-link {{if eq .Active " terminal"}}active{{end}}">
-            <span class="icon">💻</span>
+            <span class="icon"><i data-lucide="terminal"></i></span>
             <span>Terminal</span>
         </a>
 
         <div class="sidebar-section-title">System</div>
         <a href="/settings" class="sidebar-link {{if eq .Active " settings"}}active{{end}}">
-            <span class="icon">⚙️</span>
+            <span class="icon"><i data-lucide="settings"></i></span>
             <span>Settings</span>
         </a>
     </nav>
@@ -56,7 +62,8 @@
                 <div class="user-name">{{.Username}}</div>
                 <div class="user-role">Administrator</div>
             </div>
-            <button onclick="logout()" class="btn btn-ghost btn-sm" title="Logout" style="padding:6px;">🚪</button>
+            <button onclick="logout()" class="btn btn-ghost btn-sm" title="Logout" style="padding:6px;"><i
+                    data-lucide="log-out" style="width:16px;height:16px;"></i></button>
         </div>
     </div>
 </aside>

@@ -81,12 +81,14 @@ else
     echo "  Docker already installed, skipping."
 fi
 
-# Install cloudflared
+# Install cloudflared via official Cloudflare APT repository
 echo -e "${GREEN}[5/7]${NC} Installing cloudflared..."
 if ! command -v cloudflared &> /dev/null; then
-    curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb
-    dpkg -i /tmp/cloudflared.deb > /dev/null 2>&1
-    rm -f /tmp/cloudflared.deb
+    mkdir -p --mode=0755 /usr/share/keyrings
+    curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | tee /usr/share/keyrings/cloudflare-main.gpg > /dev/null
+    echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' | tee /etc/apt/sources.list.d/cloudflared.list > /dev/null
+    apt-get update -y > /dev/null 2>&1
+    apt-get install -y cloudflared > /dev/null 2>&1
 else
     echo "  cloudflared already installed, skipping."
 fi

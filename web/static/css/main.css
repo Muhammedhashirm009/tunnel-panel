@@ -225,6 +225,23 @@ a:hover { text-decoration: underline; }
     font-size: 1.1rem;
 }
 
+.sidebar-link .icon svg,
+.sidebar-link .icon i {
+    width: 18px;
+    height: 18px;
+}
+
+/* --- Lucide Icon Utilities --- */
+.btn i[data-lucide],
+.btn svg {
+    flex-shrink: 0;
+}
+
+h3 i[data-lucide] {
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
 .sidebar-footer {
     padding: 16px;
     border-top: 1px solid var(--border-color);
