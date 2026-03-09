@@ -374,14 +374,14 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 	log.Println("[tunnel] API token verified ✓")
 
 	// 2. Create Panel Tunnel (#1)
-	panelTunnel, panelSecret, err := m.cf.CreateTunnel("tunnelpanel-panel")
+	panelTunnel, panelSecret, err := m.createTunnelWithUniqueName("tunnelpanel-panel")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create panel tunnel: %w", err)
 	}
 	log.Printf("[tunnel] Created panel tunnel: %s (ID: %s)", panelTunnel.Name, panelTunnel.ID)
 
 	// 3. Create Apps Tunnel (#2)
-	appsTunnel, appsSecret, err := m.cf.CreateTunnel("tunnelpanel-apps")
+	appsTunnel, appsSecret, err := m.createTunnelWithUniqueName("tunnelpanel-apps")
 	if err != nil {
 		// Cleanup panel tunnel on failure
 		m.cf.DeleteTunnel(panelTunnel.ID)
@@ -461,6 +461,23 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 		AppsTunnelID:  appsTunnel.ID,
 		PanelDomain:   panelDomain,
 	}, nil
+}
+
+// createTunnelWithUniqueName attempts to create a tunnel, appending an index if a duplicate exists
+func (m *Manager) createTunnelWithUniqueName(baseName string) (*Tunnel, string, error) {
+	name := baseName
+	for i := 0; i < 20; i++ {
+		if i > 0 {
+			name = fmt.Sprintf("%s-%d", baseName, i)
+		}
+		tunnel, secret, err := m.cf.CreateTunnel(name)
+		if err == nil {
+			return tunnel, secret, nil
+		}
+		// Log the error and try the next suffix
+		log.Printf("[tunnel] Warning: Failed creating tunnel '%s': %v. Trying next index...", name, err)
+	}
+	return nil, "", fmt.Errorf("failed to create tunnel after multiple attempts")
 }
 
 // writeCredentials writes a cloudflared tunnel credentials JSON file
