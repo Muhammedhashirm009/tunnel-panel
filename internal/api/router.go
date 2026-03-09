@@ -181,7 +181,18 @@ func SetupRouter(cfg *config.Config, tunnelMgr *tunnel.Manager) *gin.Engine {
 		protectedAPI.POST("/docker/images/pull", dockerHandler.PullImage)
 		protectedAPI.POST("/docker/deploy", dockerHandler.DeployFromRepo)
 		protectedAPI.GET("/docker/deploy/:id/status", dockerHandler.GetDeployStatus)
+
+		// Web Terminal
+		terminalHandler := handlers.NewTerminalHandler()
+		protectedAPI.GET("/terminal/ws", terminalHandler.WebSocket)
+        
+		// Database Management
+		dbHandler := handlers.NewDatabaseHandler(tunnelMgr)
+		protectedAPI.GET("/databases", dbHandler.ListDatabases)
+		protectedAPI.POST("/databases", dbHandler.CreateDatabase)
+		protectedAPI.DELETE("/databases/:id", dbHandler.DeleteDatabase)
 	}
 
 	return r
 }
+

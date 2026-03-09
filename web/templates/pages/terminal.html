@@ -7,6 +7,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}}</title>
     <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <style>
+        .terminal-container {
+            width: 100%;
+            height: calc(100vh - 200px);
+            background-color: #000;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        /* Adjust for dark theme if present */
+        .xterm .xterm-viewport {
+            border-radius: 4px;
+        }
+    </style>
 </head>
 
 <body>
@@ -19,20 +36,45 @@
             </div>
             <div class="page-body">
                 <div class="card">
-                    <div class="card-body">
-                        <div class="empty-state">
-                            <div class="icon">💻</div>
-                            <p>Web Terminal will be available in Phase 4</p>
-                            <p style="font-size:0.8rem; color:var(--text-muted);">Full PTY terminal with xterm.js — run
-                                commands directly from the browser.</p>
+                    <div class="card-body" style="padding: 0; position: relative;">
+                        <!-- SSH Login Overlay -->
+                        <div id="ssh-login-overlay"
+                            style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                            <div class="card" style="width: 350px; background: var(--bg-card);">
+                                <div class="card-body">
+                                    <h3 style="margin-bottom: 15px;">SSH Connection</h3>
+                                    <div class="form-group" style="margin-bottom: 10px;">
+                                        <label>Host</label>
+                                        <input type="text" id="ssh-host" class="form-control" value="127.0.0.1:22"
+                                            placeholder="127.0.0.1:22">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 10px;">
+                                        <label>Username</label>
+                                        <input type="text" id="ssh-user" class="form-control" value="root"
+                                            placeholder="root">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 15px;">
+                                        <label>Password</label>
+                                        <input type="password" id="ssh-pass" class="form-control"
+                                            placeholder="SSH Password">
+                                    </div>
+                                    <button id="ssh-connect-btn" class="btn btn-primary"
+                                        style="width: 100%;">Connect</button>
+                                </div>
+                            </div>
                         </div>
+
+                        <div id="terminal" class="terminal-container"></div>
                     </div>
                 </div>
             </div>
         </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
     <script src="/static/js/api.js"></script>
     <script src="/static/js/app.js"></script>
+    <script src="/static/js/terminal.js"></script>
 </body>
 
 </html>

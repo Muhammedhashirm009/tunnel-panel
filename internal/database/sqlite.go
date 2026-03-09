@@ -124,9 +124,20 @@ func migrate() error {
 		db_user TEXT NOT NULL,
 		db_password_enc TEXT NOT NULL,
 		site_id INTEGER DEFAULT NULL,
+		container_id TEXT DEFAULT '',
+		port INTEGER DEFAULT 0,
+		pma_container_id TEXT DEFAULT '',
+		pma_domain TEXT DEFAULT '',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE SET NULL
 	);
+
+    -- Try to add new columns if the table already existed before this update
+    ALTER TABLE databases_managed ADD COLUMN container_id TEXT DEFAULT '';
+    ALTER TABLE databases_managed ADD COLUMN port INTEGER DEFAULT 0;
+    ALTER TABLE databases_managed ADD COLUMN pma_container_id TEXT DEFAULT '';
+    ALTER TABLE databases_managed ADD COLUMN pma_domain TEXT DEFAULT '';
+
 
 	CREATE TABLE IF NOT EXISTS audit_log (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,

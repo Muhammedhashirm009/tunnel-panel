@@ -18,19 +18,92 @@
                 <p>Manage MySQL/MariaDB databases</p>
             </div>
             <div class="page-body">
-                <div class="card">
-                    <div class="card-body">
-                        <div class="empty-state">
-                            <div class="icon">🗄️</div>
-                            <p>Database management will be available in Phase 4</p>
+                <div class="card" style="margin-bottom: 20px;">
+                    <div class="card-header"
+                        style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 class="card-title">Managed Databases</h3>
+                        <button class="btn btn-primary" onclick="showCreateDBModal()">+ New Database</button>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>User</th>
+                                        <th>Container</th>
+                                        <th>phpMyAdmin</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dbs-list">
+                                    <tr>
+                                        <td colspan="7" style="text-align: center; padding: 2rem;">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Create DB Modal -->
+            <div id="create-db-modal" class="modal"
+                style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                <div class="modal-content card" style="width: 450px; background: var(--bg-card); border-radius: 8px;">
+                    <div class="card-header"
+                        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 15px 20px;">
+                        <h3 style="margin: 0;">Create Database</h3>
+                        <button onclick="hideCreateDBModal()"
+                            style="background: none; border: none; color: var(--text-color); cursor: pointer; font-size: 1.2rem;">&times;</button>
+                    </div>
+                    <div class="card-body" style="padding: 20px;">
+                        <form id="create-db-form">
+                            <div class="form-group" style="margin-bottom: 15px;">
+                                <label for="db-name">Database Name</label>
+                                <input type="text" id="db-name" class="form-control" required placeholder="e.g. app_db">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 15px;">
+                                <label for="db-type">Engine</label>
+                                <select id="db-type" class="form-control">
+                                    <option value="mariadb">MariaDB (v10)</option>
+                                    <option value="mysql">MySQL (v8)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 15px;">
+                                <label for="db-root-pass">Root Password</label>
+                                <input type="password" id="db-root-pass" class="form-control" required>
+                            </div>
+                            <hr style="border-color: var(--border-color); margin: 15px 0;">
+                            <div class="form-group" style="margin-bottom: 15px;">
+                                <label for="db-user">Database User</label>
+                                <input type="text" id="db-user" class="form-control" required
+                                    placeholder="e.g. app_user">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 15px;">
+                                <label for="db-user-pass">User Password</label>
+                                <input type="password" id="db-user-pass" class="form-control" required>
+                            </div>
+                            <hr style="border-color: var(--border-color); margin: 15px 0;">
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label for="pma-domain">phpMyAdmin Domain (Auto-tunnel)</label>
+                                <input type="text" id="pma-domain" class="form-control" required
+                                    placeholder="pma.yourdomain.com">
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block" style="width: 100%;">Provision
+                                Database & PMA</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
     <script src="/static/js/api.js"></script>
     <script src="/static/js/app.js"></script>
+    <script src="/static/js/databases.js"></script>
 </body>
 
 </html>
