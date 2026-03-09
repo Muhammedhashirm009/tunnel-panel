@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
 	"gopkg.in/yaml.v3"
@@ -95,6 +96,24 @@ func (m *Manager) AddIngressRule(domain string, port int, appType string, appID 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Reject well-known non-HTTP ports — cloudflared tunnels only support HTTP/HTTPS.
+	// Tunneling binary protocols (MySQL, Redis, SMTP, etc.) causes malformed HTTP errors.
+	nonHTTPPorts := map[int]string{
+		3306:  "MySQL/MariaDB (binary protocol — use phpMyAdmin via Auto Tunnel instead)",
+		5432:  "PostgreSQL (binary protocol — use a web-based DB tool instead)",
+		6379:  "Redis (binary protocol)",
+		27017: "MongoDB (binary protocol)",
+		25:    "SMTP (email protocol)",
+		465:   "SMTPS (email protocol)",
+		587:   "SMTP submission (email protocol)",
+		22:    "SSH (binary protocol)",
+		21:    "FTP (binary protocol)",
+		3389:  "RDP (binary protocol)",
+	}
+	if reason, bad := nonHTTPPorts[port]; bad {
+		return fmt.Errorf("port %d is not HTTP-compatible (%s). Cloudflare tunnels only forward HTTP/HTTPS traffic", port, reason)
+	}
+
 	// Load CF config from DB if not already set
 	m.ensureConfigured()
 
@@ -103,29 +122,39 @@ func (m *Manager) AddIngressRule(domain string, port int, appType string, appID 
 	log.Printf("[tunnel]   Target:  localhost:%d", port)
 	log.Printf("[tunnel]   Type:    %s (ID: %d)", appType, appID)
 
-	// 1. Create DNS CNAME record pointing to tunnel
+	// Check if this domain already has an ingress rule
+	var existingID int
+	var existingDNSRecordID string
+	database.DB().QueryRow("SELECT id FROM tunnel_ingress_rules WHERE domain = ?", domain).Scan(&existingID)
+	if existingID > 0 {
+		log.Printf("[tunnel]   ⚠ Ingress rule already exists for %s (id=%d) — updating target to localhost:%d", domain, existingID, port)
+	}
+
+	// 1. Create or update DNS CNAME record
 	var dnsRecordID string
 	if m.cf != nil && m.tunnelID != "" {
-		log.Printf("[tunnel]   Step 1: Creating DNS CNAME → %s.cfargotunnel.com", m.tunnelID)
+		log.Printf("[tunnel]   Step 1: Upserting DNS CNAME → %s.cfargotunnel.com", m.tunnelID)
 		record, err := m.cf.CreateDNSRecord(domain, m.tunnelID)
 		if err != nil {
-			log.Printf("[tunnel]   ⚠ DNS creation failed: %v (continuing without DNS)", err)
+			log.Printf("[tunnel]   ⚠ DNS upsert failed: %v (continuing without DNS)", err)
 		} else {
 			dnsRecordID = record.ID
-			log.Printf("[tunnel]   ✓ DNS CNAME created (record ID: %s)", dnsRecordID)
-			// Save DNS record ID for the site
+			existingDNSRecordID = dnsRecordID
+			log.Printf("[tunnel]   ✓ DNS CNAME upserted (record ID: %s)", dnsRecordID)
 			if appType == "site" && appID > 0 {
 				database.DB().Exec("UPDATE sites SET dns_record_id = ? WHERE id = ?", dnsRecordID, appID)
 			}
 		}
 	} else {
-		log.Printf("[tunnel]   ⚠ Cloudflare not configured (cf=%v, tunnelID=%s) — skipping DNS", m.cf != nil, m.tunnelID)
+		log.Printf("[tunnel]   ⚠ Cloudflare not configured — skipping DNS")
 	}
+	_ = existingDNSRecordID
 
-	// 2. Store the ingress rule in DB
-	log.Printf("[tunnel]   Step 2: Storing ingress rule in database")
+	// 2. Upsert the ingress rule in DB (handles duplicates gracefully)
+	log.Printf("[tunnel]   Step 2: Upserting ingress rule in database")
 	_, err := database.DB().Exec(
-		"INSERT INTO tunnel_ingress_rules (domain, target, app_type, app_id) VALUES (?, ?, ?, ?)",
+		"INSERT INTO tunnel_ingress_rules (domain, target, app_type, app_id) VALUES (?, ?, ?, ?) "+
+			"ON CONFLICT(domain) DO UPDATE SET target=excluded.target, app_type=excluded.app_type, app_id=excluded.app_id",
 		domain, fmt.Sprintf("http://localhost:%d", port), appType, appID,
 	)
 	if err != nil {
@@ -134,7 +163,7 @@ func (m *Manager) AddIngressRule(domain string, port int, appType string, appID 
 		}
 		return fmt.Errorf("failed to store ingress rule: %w", err)
 	}
-	log.Printf("[tunnel]   ✓ Ingress rule stored")
+	log.Printf("[tunnel]   ✓ Ingress rule upserted")
 
 	// 3. Regenerate tunnel config and reload
 	log.Printf("[tunnel]   Step 3: Regenerating apps tunnel config")
@@ -147,7 +176,6 @@ func (m *Manager) AddIngressRule(domain string, port int, appType string, appID 
 	log.Printf("[tunnel]   Step 4: Reloading apps tunnel service")
 	if err := m.reloadTunnel(); err != nil {
 		log.Printf("[tunnel]   ⚠ Tunnel reload failed: %v (service may not be running yet)", err)
-		// Don't fail — the config is written, tunnel will pick it up when started
 	} else {
 		log.Printf("[tunnel]   ✓ Tunnel service reloaded")
 	}
@@ -301,44 +329,106 @@ func (m *Manager) reloadTunnel() error {
 	return nil
 }
 
-// GetTunnelStatus returns the status of both tunnels
+// CreateDNSForDomain creates or updates a Cloudflare DNS CNAME so the given domain
+// routes to the apps tunnel. Used when adding new custom domains (e.g. phpMyAdmin).
+func (m *Manager) CreateDNSForDomain(domain string) error {
+	if m.cf == nil {
+		return fmt.Errorf("cloudflare client not configured")
+	}
+	if m.tunnelID == "" {
+		return fmt.Errorf("apps tunnel ID not set — run Setup Tunnels first")
+	}
+	_, err := m.cf.CreateDNSRecord(domain, m.tunnelID)
+	return err
+}
+
+// GetTunnelStatus returns the status of both tunnels including health diagnostics
 func (m *Manager) GetTunnelStatus() (*TunnelStatus, error) {
-	panelStatus := "unknown"
-	appsStatus := "unknown"
+	m.ensureConfigured()
 
-	// Check panel tunnel systemd service
-	out, _ := exec.Command("systemctl", "is-active", "tunnelpanel-panel-tunnel").Output()
-	panelStatus = strings.TrimSpace(string(out))
+	panelStatus := strings.TrimSpace(func() string {
+		out, _ := exec.Command("systemctl", "is-active", "tunnelpanel-panel-tunnel").Output()
+		return string(out)
+	}())
+	appsStatus := strings.TrimSpace(func() string {
+		out, _ := exec.Command("systemctl", "is-active", "tunnelpanel-apps-tunnel").Output()
+		return string(out)
+	}())
 
-	// Check apps tunnel systemd service
-	out, _ = exec.Command("systemctl", "is-active", "tunnelpanel-apps-tunnel").Output()
-	appsStatus = strings.TrimSpace(string(out))
+	// Check journal for connection errors (last 30 lines is enough)
+	panelErr := checkTunnelServiceHealth("tunnelpanel-panel-tunnel")
+	appsErr := checkTunnelServiceHealth("tunnelpanel-apps-tunnel")
 
-	// Get more info from Cloudflare API if possible
+	// Try to get CF tunnel info to verify IDs actually exist
 	var panelInfo, appsInfo *Tunnel
-	if m.tunnelID != "" {
-		// Panel tunnel info
+	if m.cf != nil {
 		var panelTunnelID string
-		database.DB().QueryRow("SELECT tunnel_panel_id FROM cloudflare_config WHERE id = 1").Scan(&panelTunnelID)
+		database.DB().QueryRow("SELECT COALESCE(tunnel_panel_id,'') FROM cloudflare_config WHERE id=1").Scan(&panelTunnelID)
 		if panelTunnelID != "" {
-			panelInfo, _ = m.cf.GetTunnel(panelTunnelID)
+			if t, err := m.cf.GetTunnel(panelTunnelID); err != nil {
+				// CF returns an error — the tunnel ID doesn't exist
+				if panelErr == "" {
+					panelErr = "Tunnel ID not found in Cloudflare — click Repair to recreate"
+				}
+			} else {
+				panelInfo = t
+			}
 		}
-		// Apps tunnel info
-		appsInfo, _ = m.cf.GetTunnel(m.tunnelID)
+		if m.tunnelID != "" {
+			if t, err := m.cf.GetTunnel(m.tunnelID); err != nil {
+				if appsErr == "" {
+					appsErr = "Tunnel ID not found in Cloudflare — click Repair to recreate"
+				}
+			} else {
+				appsInfo = t
+			}
+		}
 	}
 
 	return &TunnelStatus{
 		PanelTunnel: TunnelInfo{
-			ServiceStatus: panelStatus,
-			Running:       panelStatus == "active",
+			ServiceStatus:  panelStatus,
+			Running:        panelStatus == "active",
+			Healthy:        panelStatus == "active" && panelErr == "" && panelInfo != nil,
+			LastError:       panelErr,
 			CloudflareInfo: panelInfo,
 		},
 		AppsTunnel: TunnelInfo{
-			ServiceStatus: appsStatus,
-			Running:       appsStatus == "active",
+			ServiceStatus:  appsStatus,
+			Running:        appsStatus == "active",
+			Healthy:        appsStatus == "active" && appsErr == "" && appsInfo != nil,
+			LastError:       appsErr,
 			CloudflareInfo: appsInfo,
 		},
 	}, nil
+}
+
+// checkTunnelServiceHealth reads the journal for this service and returns the last error message,
+// or empty string if everything looks healthy.
+func checkTunnelServiceHealth(serviceName string) string {
+	out, err := exec.Command("journalctl", "-u", serviceName, "-n", "20", "--no-pager", "--output=cat").Output()
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(string(out), "\n")
+	// Scan from newest to oldest for known error patterns
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := lines[i]
+		switch {
+		case strings.Contains(line, "Tunnel not found"):
+			return "Tunnel not found — credentials are stale. Click Repair Tunnels."
+		case strings.Contains(line, "Unauthorized"):
+			return "Unauthorized — API token or tunnel secret is invalid. Click Repair Tunnels."
+		case strings.Contains(line, "failed to sufficiently increase receive buffer size"):
+			continue // Non-critical warning, ignore
+		case strings.Contains(line, "ERR ") && strings.Contains(line, "error"):
+			// Generic error — trim timestamp prefix and return
+			if idx := strings.Index(line, "ERR "); idx >= 0 {
+				return strings.TrimSpace(line[idx+4:])
+			}
+		}
+	}
+	return ""
 }
 
 // TunnelStatus holds status of both tunnels
@@ -351,6 +441,8 @@ type TunnelStatus struct {
 type TunnelInfo struct {
 	ServiceStatus  string  `json:"service_status"`
 	Running        bool    `json:"running"`
+	Healthy        bool    `json:"healthy"` // true = running AND no connection errors
+	LastError      string  `json:"last_error,omitempty"` // last cloudflared error if any
 	CloudflareInfo *Tunnel `json:"cloudflare_info,omitempty"`
 }
 
@@ -373,30 +465,36 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 	}
 	log.Println("[tunnel] API token verified ✓")
 
-	// 2. Create Panel Tunnel (#1)
-	panelTunnel, panelSecret, err := m.cf.CreateTunnel("tunnelpanel-panel")
+	// 2. Find or create Panel Tunnel (#1)
+	panelTunnel, panelSecret, err := m.findOrCreateTunnel("tunnelpanel-panel")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create panel tunnel: %w", err)
+		return nil, fmt.Errorf("failed to provision panel tunnel: %w", err)
 	}
-	log.Printf("[tunnel] Created panel tunnel: %s (ID: %s)", panelTunnel.Name, panelTunnel.ID)
+	log.Printf("[tunnel] Panel tunnel ready: %s (ID: %s)", panelTunnel.Name, panelTunnel.ID)
 
-	// 3. Create Apps Tunnel (#2)
-	appsTunnel, appsSecret, err := m.cf.CreateTunnel("tunnelpanel-apps")
+	// 3. Find or create Apps Tunnel (#2)
+	appsTunnel, appsSecret, err := m.findOrCreateTunnel("tunnelpanel-apps")
 	if err != nil {
-		// Cleanup panel tunnel on failure
-		m.cf.DeleteTunnel(panelTunnel.ID)
-		return nil, fmt.Errorf("failed to create apps tunnel: %w", err)
+		return nil, fmt.Errorf("failed to provision apps tunnel: %w", err)
 	}
-	log.Printf("[tunnel] Created apps tunnel: %s (ID: %s)", appsTunnel.Name, appsTunnel.ID)
+	log.Printf("[tunnel] Apps tunnel ready: %s (ID: %s)", appsTunnel.Name, appsTunnel.ID)
 
-	// 4. Write credential files
-	if err := m.writeCredentials(panelTunnel.ID, panelSecret, "tunnel-panel-creds.json"); err != nil {
-		return nil, fmt.Errorf("failed to write panel tunnel credentials: %w", err)
+	// 4. Write credential files (only for newly created tunnels — secret is empty for reused ones)
+	if panelSecret != "" {
+		if err := m.writeCredentials(panelTunnel.ID, panelSecret, "tunnel-panel-creds.json"); err != nil {
+			return nil, fmt.Errorf("failed to write panel tunnel credentials: %w", err)
+		}
+	} else {
+		log.Println("[tunnel] Reusing existing panel tunnel — skipping credential overwrite")
 	}
-	if err := m.writeCredentials(appsTunnel.ID, appsSecret, "tunnel-apps-creds.json"); err != nil {
-		return nil, fmt.Errorf("failed to write apps tunnel credentials: %w", err)
+	if appsSecret != "" {
+		if err := m.writeCredentials(appsTunnel.ID, appsSecret, "tunnel-apps-creds.json"); err != nil {
+			return nil, fmt.Errorf("failed to write apps tunnel credentials: %w", err)
+		}
+	} else {
+		log.Println("[tunnel] Reusing existing apps tunnel — skipping credential overwrite")
 	}
-	log.Println("[tunnel] Credentials written ✓")
+	log.Println("[tunnel] Credentials handled ✓")
 
 	// 5. Write cloudflared config for panel tunnel
 	panelConfig := TunnelConfig{
@@ -413,30 +511,48 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 		return nil, fmt.Errorf("failed to write panel tunnel config: %w", err)
 	}
 
-	// 6. Write cloudflared config for apps tunnel
+	// 6. Write cloudflared config for apps tunnel — rebuild from DB ingress rules
 	m.tunnelID = appsTunnel.ID
 	m.tunnelSecret = appsSecret
-	appsConfig := TunnelConfig{
-		Tunnel:          appsTunnel.ID,
-		CredentialsFile: filepath.Join(m.configDir, "tunnel-apps-creds.json"),
-		Ingress: []IngressRule{
-			{Service: "http_status:404"}, // catch-all, rules added later
-		},
-	}
-	appsConfigData, _ := yaml.Marshal(appsConfig)
 	appsConfigPath := filepath.Join(m.configDir, "tunnel-apps.yml")
-	if err := os.WriteFile(appsConfigPath, appsConfigData, 0600); err != nil {
-		return nil, fmt.Errorf("failed to write apps tunnel config: %w", err)
+	if err := m.regenerateConfig(); err != nil {
+		// Fallback: write minimal config with catch-all if regenerate fails
+		log.Printf("[tunnel] regenerateConfig failed, writing minimal: %v", err)
+		appsConfig := TunnelConfig{
+			Tunnel:          appsTunnel.ID,
+			CredentialsFile: filepath.Join(m.configDir, "tunnel-apps-creds.json"),
+			Ingress:         []IngressRule{{Service: "http_status:404"}},
+		}
+		appsConfigData, _ := yaml.Marshal(appsConfig)
+		if werr := os.WriteFile(appsConfigPath, appsConfigData, 0600); werr != nil {
+			return nil, fmt.Errorf("failed to write apps tunnel config: %w", werr)
+		}
 	}
-	log.Println("[tunnel] Configs written ✓")
+	log.Println("[tunnel] Apps tunnel config written from DB ingress rules ✓")
+
 
 	// 7. Create DNS CNAME for panel domain
 	_, err = m.cf.CreateDNSRecord(panelDomain, panelTunnel.ID)
 	if err != nil {
-		log.Printf("[tunnel] Warning: DNS record creation failed (may already exist): %v", err)
+		log.Printf("[tunnel] Warning: panel DNS record failed (may already exist): %v", err)
 	} else {
-		log.Printf("[tunnel] DNS CNAME created: %s → %s.cfargotunnel.com", panelDomain, panelTunnel.ID)
+		log.Printf("[tunnel] DNS CNAME updated: %s → %s.cfargotunnel.com", panelDomain, panelTunnel.ID)
 	}
+
+	// 7b. Update DNS CNAMEs for ALL existing ingress rules to point to the new apps tunnel
+	// This is critical after a repair — old domains still point to the deleted tunnel ID.
+	existingRules, _ := m.getIngressRulesInternal()
+	for _, rule := range existingRules {
+		if !rule.Enabled || rule.Domain == "" {
+			continue
+		}
+		if _, dnsErr := m.cf.CreateDNSRecord(rule.Domain, appsTunnel.ID); dnsErr != nil {
+			log.Printf("[tunnel] ⚠ DNS update failed for %s: %v", rule.Domain, dnsErr)
+		} else {
+			log.Printf("[tunnel] ✓ DNS CNAME updated: %s → %s.cfargotunnel.com", rule.Domain, appsTunnel.ID)
+		}
+	}
+	log.Printf("[tunnel] DNS records updated for %d ingress rule(s) ✓", len(existingRules))
 
 	// 8. Update systemd service files to use correct config paths
 	m.updateSystemdService("tunnelpanel-panel-tunnel", panelConfigPath)
@@ -490,3 +606,60 @@ func (m *Manager) updateSystemdService(serviceName, configPath string) {
 	servicePath := fmt.Sprintf("/etc/systemd/system/%s.service", serviceName)
 	os.WriteFile(servicePath, []byte(serviceContent), 0644)
 }
+
+// findOrCreateTunnel deletes any existing Cloudflare tunnel with baseName and creates a fresh one.
+// This guarantees that the credential file on disk always matches what Cloudflare expects —
+// avoiding "Tunnel not found" errors caused by stale/rotated secrets.
+func (m *Manager) findOrCreateTunnel(baseName string) (*Tunnel, string, error) {
+	// Stop any running tunnel service first so cloudflared releases the tunnel connection
+	svcName := map[string]string{
+		"tunnelpanel-panel": "tunnelpanel-panel-tunnel",
+		"tunnelpanel-apps":  "tunnelpanel-apps-tunnel",
+	}[baseName]
+	if svcName != "" {
+		exec.Command("systemctl", "stop", svcName).Run()
+		log.Printf("[tunnel] findOrCreateTunnel: stopped %s", svcName)
+	}
+
+	// List all active tunnels and delete any with the same base name
+	tunnels, err := m.cf.ListTunnels()
+	if err != nil {
+		log.Printf("[tunnel] findOrCreateTunnel: could not list tunnels (%v) — proceeding with creation", err)
+	} else {
+		for _, t := range tunnels {
+			if t.Name == baseName {
+				log.Printf("[tunnel] findOrCreateTunnel: deleting stale tunnel '%s' (id=%s)", baseName, t.ID)
+				if delErr := m.cf.DeleteTunnel(t.ID); delErr != nil {
+					// If delete fails (e.g. tunnel has active connections), log and proceed anyway
+					log.Printf("[tunnel] findOrCreateTunnel: delete failed for %s (%v) — will try timestamp-name instead", t.ID, delErr)
+					// Fall through to suffix creation
+					suffixedName := fmt.Sprintf("%s-%d", baseName, time.Now().Unix())
+					tunnel, secret, err := m.cf.CreateTunnel(suffixedName)
+					if err != nil {
+						return nil, "", fmt.Errorf("failed to create tunnel '%s': %w", suffixedName, err)
+					}
+					log.Printf("[tunnel] findOrCreateTunnel: created '%s' (id=%s)", suffixedName, tunnel.ID)
+					return tunnel, secret, nil
+				}
+				log.Printf("[tunnel] findOrCreateTunnel: deleted stale '%s' ✓", baseName)
+				break
+			}
+		}
+	}
+
+	// Create a fresh tunnel with the base name
+	tunnel, secret, err := m.cf.CreateTunnel(baseName)
+	if err != nil {
+		// Name collision from a recently-deleted tunnel (Cloudflare may cache names briefly)
+		suffixedName := fmt.Sprintf("%s-%d", baseName, time.Now().Unix())
+		log.Printf("[tunnel] findOrCreateTunnel: '%s' failed (%v) — retrying as '%s'", baseName, err, suffixedName)
+		tunnel, secret, err = m.cf.CreateTunnel(suffixedName)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to create tunnel (tried '%s' and '%s'): %w", baseName, suffixedName, err)
+		}
+	}
+
+	log.Printf("[tunnel] findOrCreateTunnel: created fresh tunnel '%s' (id=%s)", tunnel.Name, tunnel.ID)
+	return tunnel, secret, nil
+}
+

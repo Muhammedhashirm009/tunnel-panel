@@ -181,7 +181,23 @@ func SetupRouter(cfg *config.Config, tunnelMgr *tunnel.Manager) *gin.Engine {
 		protectedAPI.POST("/docker/images/pull", dockerHandler.PullImage)
 		protectedAPI.POST("/docker/deploy", dockerHandler.DeployFromRepo)
 		protectedAPI.GET("/docker/deploy/:id/status", dockerHandler.GetDeployStatus)
+
+		// Database Management
+		dbHandler := handlers.NewDatabaseHandler(tunnelMgr)
+		protectedAPI.GET("/databases", dbHandler.ListDatabases)
+		protectedAPI.POST("/databases", dbHandler.CreateDatabase)
+		protectedAPI.DELETE("/databases/:name", dbHandler.DropDatabase)
+		protectedAPI.GET("/databases/:name/tables", dbHandler.GetTables)
+		protectedAPI.GET("/databases/users", dbHandler.ListUsers)
+		protectedAPI.POST("/databases/users", dbHandler.CreateUser)
+		protectedAPI.DELETE("/databases/users/:user", dbHandler.DropUser)
+		protectedAPI.GET("/databases/status", dbHandler.GetStatus)
+		protectedAPI.POST("/databases/phpmyadmin/tunnel", dbHandler.SetupPhpMyAdminTunnel)
 	}
+
+	// WebSocket Terminal (auth via JWT query param)
+	termHandler := handlers.NewTerminalHandler()
+	protected.GET("/ws/terminal", termHandler.HandleWebSocket)
 
 	return r
 }

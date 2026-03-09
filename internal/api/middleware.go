@@ -29,6 +29,13 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			}
 		}
 
+		// Try query param (needed for WebSocket connections)
+		if tokenStr == "" {
+			if qToken := c.Query("token"); qToken != "" {
+				tokenStr = qToken
+			}
+		}
+
 		if tokenStr == "" {
 			// Check if this is an API request or page request
 			if strings.HasPrefix(c.Request.URL.Path, "/api/") {

@@ -7,6 +7,108 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}}</title>
     <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/xterm@5.3.0/css/xterm.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://unpkg.com/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <style>
+        .terminal-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 140px);
+            min-height: 400px;
+        }
+
+        .terminal-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .terminal-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .term-dot.red {
+            background: #ff5f57;
+        }
+
+        .term-dot.yellow {
+            background: #febc2e;
+        }
+
+        .term-dot.green {
+            background: #28c840;
+        }
+
+        .term-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .term-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.78rem;
+            padding: 0.25rem 0.65rem;
+            border-radius: 999px;
+            font-weight: 600;
+        }
+
+        .term-status.connecting {
+            background: rgba(251, 191, 36, 0.15);
+            color: #fbbf24;
+        }
+
+        .term-status.connected {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+
+        .term-status.disconnected {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        #termContainer {
+            flex: 1;
+            background: #0d0d0d;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            overflow: hidden;
+            padding: 4px;
+        }
+
+        #termContainer .xterm {
+            height: 100%;
+        }
+
+        .terminal-hint {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+    </style>
 </head>
 
 <body>
@@ -14,25 +116,171 @@
         {{template "sidebar" .}}
         <main class="main-content">
             <div class="page-header">
-                <h1>Terminal</h1>
-                <p>Web-based SSH terminal</p>
+                <div>
+                    <h1>Terminal</h1>
+                    <p>Browser-based PTY shell session</p>
+                </div>
+                <div style="display:flex;gap:0.5rem">
+                    <button class="btn btn-ghost" onclick="clearTerminal()" title="Clear terminal">
+                        <i data-lucide="eraser" style="width:15px;height:15px"></i> Clear
+                    </button>
+                    <button class="btn btn-primary" id="reconnectBtn" onclick="connect()" style="display:none">
+                        <i data-lucide="refresh-cw" style="width:15px;height:15px"></i> Reconnect
+                    </button>
+                </div>
             </div>
-            <div class="page-body">
-                <div class="card">
-                    <div class="card-body">
-                        <div class="empty-state">
-                            <div class="icon">💻</div>
-                            <p>Web Terminal will be available in Phase 4</p>
-                            <p style="font-size:0.8rem; color:var(--text-muted);">Full PTY terminal with xterm.js — run
-                                commands directly from the browser.</p>
+            <div class="page-body" style="display:flex;flex-direction:column;">
+                <div class="terminal-wrapper">
+                    <div class="terminal-toolbar">
+                        <div class="terminal-toolbar-left">
+                            <span class="term-dot red"></span>
+                            <span class="term-dot yellow"></span>
+                            <span class="term-dot green"></span>
+                            <span class="term-title" id="termTitle">bash — TunnelPanel Terminal</span>
                         </div>
+                        <span class="term-status connecting" id="termStatus">
+                            <i data-lucide="loader-2" class="spin" style="width:12px;height:12px"></i>
+                            Connecting...
+                        </span>
                     </div>
+                    <div id="termContainer"></div>
+                </div>
+                <div class="terminal-hint">
+                    <i data-lucide="info" style="width:13px;height:13px"></i>
+                    Running as the server user. All commands execute directly on the host machine.
                 </div>
             </div>
         </main>
     </div>
+
     <script src="/static/js/api.js"></script>
     <script src="/static/js/app.js"></script>
+    <script>
+        let term, fitAddon, ws;
+        let connected = false;
+
+        function initTerminal() {
+            term = new Terminal({
+                theme: {
+                    background: '#0d0d0d',
+                    foreground: '#e2e8f0',
+                    cursor: '#a78bfa',
+                    cursorAccent: '#0d0d0d',
+                    selectionBackground: 'rgba(167,139,250,0.3)',
+                    black: '#1e1e2e',
+                    red: '#f38ba8',
+                    green: '#a6e3a1',
+                    yellow: '#f9e2af',
+                    blue: '#89b4fa',
+                    magenta: '#cba6f7',
+                    cyan: '#89dceb',
+                    white: '#cdd6f4',
+                    brightBlack: '#585b70',
+                    brightRed: '#f38ba8',
+                    brightGreen: '#a6e3a1',
+                    brightYellow: '#f9e2af',
+                    brightBlue: '#89b4fa',
+                    brightMagenta: '#cba6f7',
+                    brightCyan: '#89dceb',
+                    brightWhite: '#cdd6f4',
+                },
+                fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", "Consolas", monospace',
+                fontSize: 14,
+                lineHeight: 1.4,
+                cursorBlink: true,
+                cursorStyle: 'block',
+                scrollback: 5000,
+                allowTransparency: true,
+            });
+
+            fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+            term.open(document.getElementById('termContainer'));
+            fitAddon.fit();
+
+            // Send user input to WebSocket
+            term.onData(data => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(data);
+                }
+            });
+
+            // Handle resize
+            term.onResize(({ rows, cols }) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'resize', rows, cols }));
+                }
+            });
+
+            // Window resize → fit terminal
+            const ro = new ResizeObserver(() => {
+                try { fitAddon.fit(); } catch (e) { }
+            });
+            ro.observe(document.getElementById('termContainer'));
+        }
+
+        function setStatus(state, text) {
+            const el = document.getElementById('termStatus');
+            el.className = 'term-status ' + state;
+            const icons = {
+                connecting: '<i data-lucide="loader-2" class="spin" style="width:12px;height:12px"></i>',
+                connected: '<i data-lucide="check-circle" style="width:12px;height:12px"></i>',
+                disconnected: '<i data-lucide="x-circle" style="width:12px;height:12px"></i>',
+            };
+            el.innerHTML = (icons[state] || '') + ' ' + text;
+            lucide.createIcons({ nodes: [el] });
+            document.getElementById('reconnectBtn').style.display = state === 'disconnected' ? '' : 'none';
+        }
+
+        function connect() {
+            document.getElementById('reconnectBtn').style.display = 'none';
+            setStatus('connecting', 'Connecting...');
+
+            const token = localStorage.getItem('token');
+            const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+            const wsUrl = `${proto}://${location.host}/ws/terminal?token=${encodeURIComponent(token || '')}`;
+
+            if (ws) { try { ws.close(); } catch (e) { } }
+
+            ws = new WebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';
+
+            ws.onopen = () => {
+                connected = true;
+                setStatus('connected', 'Connected');
+                // Send initial size
+                const dims = { type: 'resize', rows: term.rows, cols: term.cols };
+                ws.send(JSON.stringify(dims));
+            };
+
+            ws.onmessage = e => {
+                if (e.data instanceof ArrayBuffer) {
+                    term.write(new Uint8Array(e.data));
+                } else {
+                    term.write(e.data);
+                }
+            };
+
+            ws.onclose = () => {
+                connected = false;
+                setStatus('disconnected', 'Disconnected');
+                if (term) term.write('\r\n\x1b[31m[Connection closed]\x1b[0m\r\n');
+            };
+
+            ws.onerror = () => {
+                setStatus('disconnected', 'Error');
+                if (term) term.write('\r\n\x1b[31m[WebSocket error — check if the panel is running]\x1b[0m\r\n');
+            };
+        }
+
+        function clearTerminal() {
+            if (term) term.clear();
+        }
+
+        lucide.createIcons();
+        initTerminal();
+        connect();
+    </script>
 </body>
 
 </html>

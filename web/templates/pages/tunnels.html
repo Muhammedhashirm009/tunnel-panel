@@ -29,10 +29,9 @@
                     <div>
                         <h3 style="margin:0 0 4px 0;"><i data-lucide="alert-triangle"
                                 style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:6px;color:var(--accent-amber);"></i>
-                            Tunnels Not Configured</h3>
-                        <p style="margin:0; font-size:0.85rem; color:var(--text-secondary);">Cloudflare tunnels have not
-                            been created yet. Click the button to set them up using your configured Cloudflare
-                            credentials.</p>
+                            Tunnel Issue Detected</h3>
+                        <p id="tunnelBannerMsg" style="margin:0; font-size:0.85rem; color:var(--text-secondary);">
+                            Tunnels are not configured or have errors. Click the button to set them up.</p>
                     </div>
                     <button class="btn btn-primary" id="setupTunnelsBtn" onclick="setupTunnels()"
                         style="white-space:nowrap;">Setup Tunnels</button>
@@ -59,6 +58,9 @@
                             <button class="btn btn-ghost btn-sm" onclick="viewLogs('panel')"><i
                                     data-lucide="scroll-text" style="width:14px;height:14px;"></i> Logs</button>
                         </div>
+                        <div id="panelTunnelErr"
+                            style="display:none;margin-top:8px;font-size:0.78rem;color:#ef4444;background:rgba(239,68,68,0.1);padding:6px 10px;border-radius:6px">
+                        </div>
                     </div>
 
                     <div class="tunnel-status-card">
@@ -77,6 +79,9 @@
                                     data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Restart</button>
                             <button class="btn btn-ghost btn-sm" onclick="viewLogs('apps')"><i data-lucide="scroll-text"
                                     style="width:14px;height:14px;"></i> Logs</button>
+                        </div>
+                        <div id="appsTunnelErr"
+                            style="display:none;margin-top:8px;font-size:0.78rem;color:#ef4444;background:rgba(239,68,68,0.1);padding:6px 10px;border-radius:6px">
                         </div>
                     </div>
                 </div>
@@ -225,22 +230,61 @@
             if (!data.success) return;
 
             const s = data.data;
-            updateBadge('panelTunnelBadge', s.panel_tunnel.running);
-            updateBadge('appsTunnelBadge', s.apps_tunnel.running);
+            updateTunnelCard('panelTunnel', s.panel_tunnel);
+            updateTunnelCard('appsTunnel', s.apps_tunnel);
 
-            // Show setup banner if both tunnels are not running
+            // Show setup/repair banner if neither tunnel is healthy
             const banner = document.getElementById('tunnelSetupBanner');
-            if (!s.panel_tunnel.running && !s.apps_tunnel.running) {
+            const hasErrors = s.panel_tunnel.last_error || s.apps_tunnel.last_error;
+            const neitherRunning = !s.panel_tunnel.running && !s.apps_tunnel.running;
+
+            if (hasErrors || neitherRunning) {
+                // Collect all unique errors to display
+                const errors = [s.panel_tunnel.last_error, s.apps_tunnel.last_error]
+                    .filter(Boolean)
+                    .filter((v, i, a) => a.indexOf(v) === i);
+
+                const bannerMsg = document.getElementById('tunnelBannerMsg');
+                if (bannerMsg) {
+                    bannerMsg.textContent = errors.length > 0
+                        ? errors[0]
+                        : 'Tunnels are not running. Click the button to configure them.';
+                }
+                const bannerBtn = document.getElementById('setupTunnelsBtn');
+                if (bannerBtn) bannerBtn.textContent = hasErrors ? '🔧 Repair Tunnels' : 'Setup Tunnels';
                 banner.style.display = 'block';
             } else {
                 banner.style.display = 'none';
             }
         }
 
-        function updateBadge(id, running) {
-            const el = document.getElementById(id);
-            el.className = 'badge ' + (running ? 'badge-success' : 'badge-danger');
-            el.textContent = running ? 'Connected' : 'Disconnected';
+        // Update a tunnel status card badge + inline error
+        function updateTunnelCard(tunnelKey, info) {
+            const badgeId = tunnelKey === 'panelTunnel' ? 'panelTunnelBadge' : 'appsTunnelBadge';
+            const errId = tunnelKey === 'panelTunnel' ? 'panelTunnelErr' : 'appsTunnelErr';
+            const badge = document.getElementById(badgeId);
+            const errEl = document.getElementById(errId);
+
+            if (!badge) return;
+
+            if (info.healthy) {
+                badge.className = 'badge badge-success';
+                badge.textContent = 'Connected ✓';
+            } else if (info.running && info.last_error) {
+                badge.className = 'badge badge-warning';
+                badge.textContent = 'Error';
+            } else if (info.running) {
+                badge.className = 'badge badge-warning';
+                badge.textContent = 'Connecting…';
+            } else {
+                badge.className = 'badge badge-danger';
+                badge.textContent = 'Disconnected';
+            }
+
+            if (errEl) {
+                errEl.style.display = info.last_error ? 'block' : 'none';
+                errEl.textContent = info.last_error || '';
+            }
         }
 
         // Load Cloudflare config
