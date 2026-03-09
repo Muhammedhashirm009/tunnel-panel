@@ -131,7 +131,6 @@ func migrate() error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE SET NULL
 	);
-	);
 
 	CREATE TABLE IF NOT EXISTS audit_log (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
