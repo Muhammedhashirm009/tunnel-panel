@@ -17,7 +17,7 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		tokenStr := ""
 
 		// Try cookie
-		if cookie, err := c.Cookie("tunnelpanel_token"); err == nil {
+		if cookie, err := c.Cookie("portix_token"); err == nil {
 			tokenStr = cookie
 		}
 

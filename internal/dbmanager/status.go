@@ -101,11 +101,11 @@ func FindPhpMyAdminPath() string {
 // Only checks our own managed config to avoid false-positives from other nginx sites.
 func FindPhpMyAdminPort() int {
 	// Check our managed config in sites-enabled/ (same location as Sites)
-	configPath := "/etc/nginx/sites-enabled/tunnelpanel-phpmyadmin.conf"
+	configPath := "/etc/nginx/sites-enabled/portix-phpmyadmin.conf"
 	content, err := os.ReadFile(configPath)
 	if err != nil {
 		// Also try the old sites-available path for backward compat
-		configPath = "/etc/nginx/sites-available/tunnelpanel-phpmyadmin"
+		configPath = "/etc/nginx/sites-available/portix-phpmyadmin"
 		content, err = os.ReadFile(configPath)
 		if err != nil {
 			return 0 // not created yet

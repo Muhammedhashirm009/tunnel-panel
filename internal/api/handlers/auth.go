@@ -51,7 +51,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Set httpOnly cookie
 	c.SetCookie(
-		"tunnelpanel_token",
+		"portix_token",
 		token,
 		h.cfg.SessionExpiry*3600, // seconds
 		"/",
@@ -77,7 +77,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // Logout handles POST /api/auth/logout
 func (h *AuthHandler) Logout(c *gin.Context) {
-	c.SetCookie("tunnelpanel_token", "", -1, "/", "", true, true)
+	c.SetCookie("portix_token", "", -1, "/", "", true, true)
 	httputil.Success(c, gin.H{"message": "logged out"})
 }
 
@@ -190,7 +190,7 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 
 	// Auto-login
 	token, _, _ := auth.Authenticate(req.Username, req.Password, secret, h.cfg.SessionExpiry)
-	c.SetCookie("tunnelpanel_token", token, h.cfg.SessionExpiry*3600, "/", "", true, true)
+	c.SetCookie("portix_token", token, h.cfg.SessionExpiry*3600, "/", "", true, true)
 
 	response := gin.H{
 		"message": "setup completed successfully",

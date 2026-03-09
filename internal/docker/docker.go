@@ -381,9 +381,9 @@ func (c *Client) PullImage(image string) error {
 	return nil
 }
 
-// CloneRepo clones a git repository into /var/lib/tunnelpanel/apps/<name>
+// CloneRepo clones a git repository into /var/lib/portix/apps/<name>
 func (c *Client) CloneRepo(repoURL, branch, name string) (string, error) {
-	appsDir := "/var/lib/tunnelpanel/apps"
+	appsDir := "/var/lib/portix/apps"
 	os.MkdirAll(appsDir, 0755)
 
 	appDir := filepath.Join(appsDir, name)
@@ -415,7 +415,7 @@ func (c *Client) CloneRepo(repoURL, branch, name string) (string, error) {
 
 // DeployFromRepo clones a Git repo, builds a Docker image, and runs a container
 func (c *Client) DeployFromRepo(repoURL, branch, name string, port, internalPort int, envVars []string) (string, string, error) {
-	appsDir := "/var/lib/tunnelpanel/apps"
+	appsDir := "/var/lib/portix/apps"
 	os.MkdirAll(appsDir, 0755)
 
 	appDir := filepath.Join(appsDir, name)

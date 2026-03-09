@@ -224,7 +224,7 @@ func GetAllServicesStatus() []ServiceInfo {
 		"mysql", "mariadb",
 		"docker",
 		"portix",
-		"tunnelpanel-tunnel",
+		"portix-tunnel",
 		"php8.2-fpm", "php8.1-fpm", "php8.0-fpm", "php7.4-fpm",
 		"redis-server",
 	}

@@ -340,7 +340,7 @@ func (h *DockerHandler) runDeploy(deployID, repoURL, branch, name string, port, 
 	appendLog("→ This may take a few minutes...")
 	setDeployStatus(deployID, status)
 
-	appDir := "/var/lib/tunnelpanel/apps/" + name
+	appDir := "/var/lib/portix/apps/" + name
 	buildOutput, err := h.client.BuildImage(appDir, imageTag)
 	status.BuildOutput = buildOutput
 	if err != nil {

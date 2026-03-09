@@ -22,7 +22,7 @@ const (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "tunnelpanel-cli",
+		Use:   "portix",
 		Short: "Portix CLI — Manage your server panel from the terminal",
 		Long: `
 ╔══════════════════════════════════════════╗
@@ -233,7 +233,7 @@ func cmdInfo(cmd *cobra.Command, args []string) {
 	fmt.Printf("  Version:    %s\n", version)
 	fmt.Printf("  Config:     /etc/portix/config.json\n")
 	fmt.Printf("  Database:   %s\n", dbPath)
-	fmt.Printf("  Logs:       /var/log/tunnelpanel/\n")
+	fmt.Printf("  Logs:       /var/log/portix/\n")
 
 	// Read panel domain from DB
 	db, err := openDB()
@@ -315,7 +315,7 @@ func cmdPasswordShow(cmd *cobra.Command, args []string) {
 		return
 	}
 	fmt.Printf("\n  Admin username: %s\n", username)
-	fmt.Println("  (use 'tunnelpanel-cli password reset' to reset password)")
+	fmt.Println("  (use 'portix password reset' to reset password)")
 	fmt.Println()
 }
 
@@ -344,7 +344,7 @@ func cmdLogs(cmd *cobra.Command, args []string) {
 
 func cmdUpdate(cmd *cobra.Command, args []string) {
 	fmt.Println("\n🔄 Update functionality coming in a future release.")
-	fmt.Println("   For now, manually download the latest binary and replace /usr/local/bin/tunnelpanel")
+	fmt.Println("   For now, manually download the latest binary and replace /usr/local/bin/portix")
 	fmt.Println()
 }
 

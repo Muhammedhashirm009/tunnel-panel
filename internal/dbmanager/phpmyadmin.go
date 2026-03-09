@@ -51,7 +51,7 @@ func EnsurePhpMyAdminServed() (*PhpMyAdminSetupResult, error) {
 	}
 
 	// Write nginx config DIRECTLY to sites-enabled/ (same as Sites flow, no symlink needed)
-	confPath := fmt.Sprintf("/etc/nginx/sites-enabled/tunnelpanel-phpmyadmin.conf")
+	confPath := fmt.Sprintf("/etc/nginx/sites-enabled/portix-phpmyadmin.conf")
 	nginxConfig := generatePmaVhost(port, pmaPath, phpSocket)
 	if err := os.WriteFile(confPath, []byte(nginxConfig), 0644); err != nil {
 		pm.Release(port)

@@ -466,7 +466,7 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 	log.Println("[tunnel] API token verified ✓")
 
 	// 2. Find or create Panel Tunnel (#1)
-	panelTunnel, panelSecret, err := m.findOrCreateTunnel("tunnelpanel-panel")
+	panelTunnel, panelSecret, err := m.findOrCreateTunnel("portix-panel")
 	if err != nil {
 		return nil, fmt.Errorf("failed to provision panel tunnel: %w", err)
 	}
@@ -613,7 +613,7 @@ func (m *Manager) updateSystemdService(serviceName, configPath string) {
 func (m *Manager) findOrCreateTunnel(baseName string) (*Tunnel, string, error) {
 	// Stop any running tunnel service first so cloudflared releases the tunnel connection
 	svcName := map[string]string{
-		"tunnelpanel-panel": "portix-panel-tunnel",
+		"portix-panel": "portix-panel-tunnel",
 		"portix-apps":  "portix-apps-tunnel",
 	}[baseName]
 	if svcName != "" {
