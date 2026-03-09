@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
+	"github.com/Muhammedhashirm009/tunnel-panel/internal/portmanager"
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/tunnel"
 	"github.com/gin-gonic/gin"
 )
@@ -50,10 +51,28 @@ func (h *DatabaseHandler) CreateDatabase(c *gin.Context) {
 		return
 	}
 
-	dbRec, pmaPort, err := h.manager.ProvisionDatabase(
-		req.Name, req.Type, req.RootPassword, req.User, req.UserPassword, req.PMADomain,
+	pm := portmanager.Get()
+
+	// allocate ports
+	dbPort, err := pm.Allocate("docker", 0, "db-"+req.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "failed allocating db port: " + err.Error()})
+		return
+	}
+
+	pmaPort, err := pm.Allocate("docker", 0, "pma-"+req.Name)
+	if err != nil {
+		pm.Release(dbPort)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "failed allocating pma port: " + err.Error()})
+		return
+	}
+
+	dbRec, err := h.manager.ProvisionDatabase(
+		req.Name, req.Type, req.RootPassword, req.User, req.UserPassword, req.PMADomain, dbPort, pmaPort,
 	)
 	if err != nil {
+		pm.Release(dbPort)
+		pm.Release(pmaPort)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Provision failed: " + err.Error()})
 		return
 	}
@@ -91,10 +110,14 @@ func (h *DatabaseHandler) DeleteDatabase(c *gin.Context) {
 		_ = h.tunnelMgr.RemoveIngressRule(dbRec.PmaDomain)
 	}
 
-	if err := h.manager.DeleteDatabase(id); err != nil {
+	dbPort, err := h.manager.DeleteDatabase(id)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
 	}
+
+	pm := portmanager.Get()
+	pm.Release(dbPort)
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }

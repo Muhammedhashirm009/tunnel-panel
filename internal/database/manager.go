@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Muhammedhashirm009/tunnel-panel/internal/docker"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/portmanager"
 )
 
 // ManagedDatabase represents a provisioned database container
@@ -37,23 +36,9 @@ func NewManager() *Manager {
 }
 
 // ProvisionDatabase creates a new DB container and an associated phpMyAdmin container
-func (m *Manager) ProvisionDatabase(name, dbType, rootPassword, user, userPassword, pmaDomain string) (*ManagedDatabase, int, error) {
+func (m *Manager) ProvisionDatabase(name, dbType, rootPassword, user, userPassword, pmaDomain string, dbPort int, pmaPort int) (*ManagedDatabase, error) {
 	if dbType != "mysql" && dbType != "mariadb" {
-		return nil, 0, fmt.Errorf("unsupported db_type: %s", dbType)
-	}
-
-	pm := portmanager.Get()
-
-	// 1. Allocate ports
-	dbPort, err := pm.Allocate("docker", 0, "db-"+name)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed allocating db port: %w", err)
-	}
-
-	pmaPort, err := pm.Allocate("docker", 0, "pma-"+name)
-	if err != nil {
-		pm.Release(dbPort)
-		return nil, 0, fmt.Errorf("failed allocating pma port: %w", err)
+		return nil, fmt.Errorf("unsupported db_type: %s", dbType)
 	}
 
 	log.Printf("[database] Provisioning %s %s (DB port: %d, PMA port: %d)", dbType, name, dbPort, pmaPort)
@@ -86,9 +71,7 @@ func (m *Manager) ProvisionDatabase(name, dbType, rootPassword, user, userPasswo
 
 	dbContainerID, err := m.dockerClient.CreateContainer(dbReq)
 	if err != nil {
-		pm.Release(dbPort)
-		pm.Release(pmaPort)
-		return nil, 0, fmt.Errorf("creating db container: %w", err)
+		return nil, fmt.Errorf("creating db container: %w", err)
 	}
 
 	// 3. Create PMA Container
@@ -109,9 +92,7 @@ func (m *Manager) ProvisionDatabase(name, dbType, rootPassword, user, userPasswo
 	pmaContainerID, err := m.dockerClient.CreateContainer(pmaReq)
 	if err != nil {
 		m.dockerClient.RemoveContainer(dbContainerID, true)
-		pm.Release(dbPort)
-		pm.Release(pmaPort)
-		return nil, 0, fmt.Errorf("creating pma container: %w", err)
+		return nil, fmt.Errorf("creating pma container: %w", err)
 	}
 
 	// 4. Save to database
@@ -123,9 +104,7 @@ func (m *Manager) ProvisionDatabase(name, dbType, rootPassword, user, userPasswo
 	if err != nil {
 		m.dockerClient.RemoveContainer(dbContainerID, true)
 		m.dockerClient.RemoveContainer(pmaContainerID, true)
-		pm.Release(dbPort)
-		pm.Release(pmaPort)
-		return nil, 0, fmt.Errorf("database insert failed: %w", err)
+		return nil, fmt.Errorf("database insert failed: %w", err)
 	}
 
 	id, _ := res.LastInsertId()
@@ -142,7 +121,7 @@ func (m *Manager) ProvisionDatabase(name, dbType, rootPassword, user, userPasswo
 		PmaContainerID: pmaContainerID,
 		PmaDomain:      pmaDomain,
 		CreatedAt:      time.Now(),
-	}, pmaPort, nil
+	}, nil
 }
 
 // ListDatabases lists all managed databases
@@ -166,13 +145,13 @@ func (m *Manager) ListDatabases() ([]ManagedDatabase, error) {
 }
 
 // DeleteDatabase deletes a managed database and its containers
-func (m *Manager) DeleteDatabase(id int) error {
+func (m *Manager) DeleteDatabase(id int) (int, error) {
 	var pmaContainerID, dbContainerID string
 	var pmaPort, dbPort int
 
 	err := DB().QueryRow("SELECT container_id, port, pma_container_id FROM databases_managed WHERE id = ?", id).Scan(&dbContainerID, &dbPort, &pmaContainerID)
 	if err != nil {
-		return fmt.Errorf("database not found: %w", err)
+		return 0, fmt.Errorf("database not found: %w", err)
 	}
 
 	// We don't store pma_port in the table directly, so we need to release by looking it up if possible, 
@@ -184,11 +163,8 @@ func (m *Manager) DeleteDatabase(id int) error {
 	_ = m.dockerClient.RemoveContainer(pmaContainerID, true)
 	_ = m.dockerClient.RemoveContainer(dbContainerID, true)
 
-	pm := portmanager.Get()
-	pm.Release(dbPort)
-
 	DB().Exec("DELETE FROM databases_managed WHERE id = ?", id)
-	return nil
+	return dbPort, nil
 }
 
 // GetDatabase returns a single database
