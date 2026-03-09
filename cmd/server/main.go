@@ -7,16 +7,16 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/api"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/config"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/portmanager"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/tunnel"
+	"github.com/Muhammedhashirm009/portix/internal/api"
+	"github.com/Muhammedhashirm009/portix/internal/config"
+	"github.com/Muhammedhashirm009/portix/internal/database"
+	"github.com/Muhammedhashirm009/portix/internal/portmanager"
+	"github.com/Muhammedhashirm009/portix/internal/tunnel"
 )
 
 func main() {
 	fmt.Println("╔══════════════════════════════════════╗")
-	fmt.Println("║         🚀 TunnelPanel v1.0          ║")
+	fmt.Println("║         🚀 Portix v1.0          ║")
 	fmt.Println("║    Server Control Panel + Tunnels     ║")
 	fmt.Println("╚══════════════════════════════════════╝")
 	fmt.Println()
@@ -78,7 +78,7 @@ func main() {
 
 	// Start server
 	listenAddr := cfg.GetListenAddr()
-	log.Printf("TunnelPanel server starting on %s", listenAddr)
+	log.Printf("Portix server starting on %s", listenAddr)
 
 	if cfg.AllowDirectAccess {
 		log.Println("⚠️  Direct IP access is ENABLED (emergency fallback mode)")
@@ -97,6 +97,6 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down TunnelPanel...")
+	log.Println("Shutting down Portix...")
 	database.Close()
 }

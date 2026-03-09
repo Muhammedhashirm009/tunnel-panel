@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/filemanager"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/httputil"
+	"github.com/Muhammedhashirm009/portix/internal/filemanager"
+	"github.com/Muhammedhashirm009/portix/internal/httputil"
 )
 
 // FileManagerHandler handles file management endpoints

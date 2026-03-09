@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/httputil"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/sites"
+	"github.com/Muhammedhashirm009/portix/internal/httputil"
+	"github.com/Muhammedhashirm009/portix/internal/sites"
 )
 
 // SitesHandler handles site management endpoints

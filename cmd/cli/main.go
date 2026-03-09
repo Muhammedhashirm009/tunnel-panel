@@ -15,18 +15,18 @@ import (
 )
 
 const (
-	dbPath      = "/etc/tunnelpanel/panel.db"
-	serviceName = "tunnelpanel"
+	dbPath      = "/etc/portix/panel.db"
+	serviceName = "portix"
 	version     = "1.0.0"
 )
 
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "tunnelpanel-cli",
-		Short: "TunnelPanel CLI — Manage your server panel from the terminal",
+		Short: "Portix CLI — Manage your server panel from the terminal",
 		Long: `
 ╔══════════════════════════════════════════╗
-║       🚀 TunnelPanel CLI v` + version + `          ║
+║       🚀 Portix CLI v` + version + `          ║
 ║    Server Control Panel Management       ║
 ╚══════════════════════════════════════════╝`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -125,7 +125,7 @@ func main() {
 	// Update command
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "update",
-		Short: "Update TunnelPanel to latest version",
+		Short: "Update Portix to latest version",
 		Run:   cmdUpdate,
 	})
 
@@ -134,7 +134,7 @@ func main() {
 		Use:   "version",
 		Short: "Show version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("TunnelPanel CLI v%s\n", version)
+			fmt.Printf("Portix CLI v%s\n", version)
 		},
 	})
 
@@ -146,7 +146,7 @@ func main() {
 func showInteractiveMenu() {
 	fmt.Println(`
 ╔══════════════════════════════════════════╗
-║       🚀 TunnelPanel CLI v` + version + `          ║
+║       🚀 Portix CLI v` + version + `          ║
 ╚══════════════════════════════════════════╝
 
   1) Start panel
@@ -193,9 +193,9 @@ func showInteractiveMenu() {
 func cmdStatus(cmd *cobra.Command, args []string) {
 	fmt.Println("\n📊 Service Status:")
 	fmt.Println("─────────────────────────────────")
-	showServiceStatus(serviceName, "TunnelPanel Server")
-	showServiceStatus("tunnelpanel-panel-tunnel", "Panel Tunnel (#1)")
-	showServiceStatus("tunnelpanel-apps-tunnel", "Apps Tunnel (#2)")
+	showServiceStatus(serviceName, "Portix Server")
+	showServiceStatus("portix-panel-tunnel", "Panel Tunnel (#1)")
+	showServiceStatus("portix-apps-tunnel", "Apps Tunnel (#2)")
 	showServiceStatus("nginx", "Nginx")
 	showServiceStatus("docker", "Docker")
 	showServiceStatus("mysql", "MySQL")
@@ -228,10 +228,10 @@ func serviceControl(action string) {
 }
 
 func cmdInfo(cmd *cobra.Command, args []string) {
-	fmt.Println("\n📋 TunnelPanel Info:")
+	fmt.Println("\n📋 Portix Info:")
 	fmt.Println("─────────────────────────────────")
 	fmt.Printf("  Version:    %s\n", version)
-	fmt.Printf("  Config:     /etc/tunnelpanel/config.json\n")
+	fmt.Printf("  Config:     /etc/portix/config.json\n")
 	fmt.Printf("  Database:   %s\n", dbPath)
 	fmt.Printf("  Logs:       /var/log/tunnelpanel/\n")
 
@@ -322,15 +322,15 @@ func cmdPasswordShow(cmd *cobra.Command, args []string) {
 func cmdTunnelStatus(cmd *cobra.Command, args []string) {
 	fmt.Println("\n🔗 Tunnel Status:")
 	fmt.Println("─────────────────────────────────")
-	showServiceStatus("tunnelpanel-panel-tunnel", "Panel Tunnel (#1)")
-	showServiceStatus("tunnelpanel-apps-tunnel", "Apps Tunnel (#2)")
+	showServiceStatus("portix-panel-tunnel", "Panel Tunnel (#1)")
+	showServiceStatus("portix-apps-tunnel", "Apps Tunnel (#2)")
 	fmt.Println()
 }
 
 func cmdTunnelRestart(cmd *cobra.Command, args []string) {
 	fmt.Println("\n↻ Restarting tunnels...")
-	exec.Command("systemctl", "restart", "tunnelpanel-panel-tunnel").Run()
-	exec.Command("systemctl", "restart", "tunnelpanel-apps-tunnel").Run()
+	exec.Command("systemctl", "restart", "portix-panel-tunnel").Run()
+	exec.Command("systemctl", "restart", "portix-apps-tunnel").Run()
 	time.Sleep(2 * time.Second)
 	cmdTunnelStatus(nil, nil)
 }

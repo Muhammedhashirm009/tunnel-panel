@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/docker"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/portmanager"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/tunnel"
+	"github.com/Muhammedhashirm009/portix/internal/database"
+	"github.com/Muhammedhashirm009/portix/internal/docker"
+	"github.com/Muhammedhashirm009/portix/internal/portmanager"
+	"github.com/Muhammedhashirm009/portix/internal/tunnel"
 	"github.com/gin-gonic/gin"
 )
 

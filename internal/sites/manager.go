@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/portmanager"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/tunnel"
+	"github.com/Muhammedhashirm009/portix/internal/database"
+	"github.com/Muhammedhashirm009/portix/internal/portmanager"
+	"github.com/Muhammedhashirm009/portix/internal/tunnel"
 )
 
 // Site represents a hosted PHP website
@@ -81,7 +81,7 @@ func (m *Manager) CreateSite(name, domain, phpVersion string) (*Site, error) {
 	log.Printf("[sites]   ✓ Document root: %s", docRoot)
 
 	// Create default index.php
-	indexContent := fmt.Sprintf("<!DOCTYPE html>\n<html>\n<head><title>%s</title></head>\n<body>\n<h1>Welcome to %s</h1>\n<p>Domain: %s</p>\n<p>PHP Version: <?php echo phpversion(); ?></p>\n<p>Managed by TunnelPanel</p>\n</body>\n</html>", name, name, domain)
+	indexContent := fmt.Sprintf("<!DOCTYPE html>\n<html>\n<head><title>%s</title></head>\n<body>\n<h1>Welcome to %s</h1>\n<p>Domain: %s</p>\n<p>PHP Version: <?php echo phpversion(); ?></p>\n<p>Managed by Portix</p>\n</body>\n</html>", name, name, domain)
 	os.WriteFile(filepath.Join(docRoot, "index.php"), []byte(indexContent), 0644)
 
 	// Step 3: Generate Nginx vhost
@@ -172,7 +172,7 @@ func (m *Manager) loadTunnelManager() (*tunnel.Manager, error) {
 	}
 
 	cf := tunnel.NewCloudflareClient(apiToken, accountID, zoneID, zoneName)
-	mgr := tunnel.NewManager(cf, nil, "/etc/tunnelpanel", appsTunnelID, "")
+	mgr := tunnel.NewManager(cf, nil, "/etc/portix", appsTunnelID, "")
 	return mgr, nil
 }
 

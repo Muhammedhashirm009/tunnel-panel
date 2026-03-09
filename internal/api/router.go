@@ -6,11 +6,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/api/handlers"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/config"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/sites"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/tunnel"
-	"github.com/Muhammedhashirm009/tunnel-panel/web"
+	"github.com/Muhammedhashirm009/portix/internal/api/handlers"
+	"github.com/Muhammedhashirm009/portix/internal/config"
+	"github.com/Muhammedhashirm009/portix/internal/sites"
+	"github.com/Muhammedhashirm009/portix/internal/tunnel"
+	"github.com/Muhammedhashirm009/portix/web"
 )
 
 // SetupRouter configures all routes and returns the Gin engine
@@ -41,11 +41,11 @@ func SetupRouter(cfg *config.Config, tunnelMgr *tunnel.Manager) *gin.Engine {
 
 	// --- Public routes ---
 	r.GET("/login", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "login.html", gin.H{"Title": "Login — TunnelPanel"})
+		c.HTML(http.StatusOK, "login.html", gin.H{"Title": "Login — Portix"})
 	})
 
 	r.GET("/setup", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "setup.html", gin.H{"Title": "Setup — TunnelPanel"})
+		c.HTML(http.StatusOK, "setup.html", gin.H{"Title": "Setup — Portix"})
 	})
 
 	// --- Public API ---
@@ -67,56 +67,56 @@ func SetupRouter(cfg *config.Config, tunnelMgr *tunnel.Manager) *gin.Engine {
 		protected.GET("/dashboard", func(c *gin.Context) {
 			username, _ := c.Get("username")
 			c.HTML(http.StatusOK, "dashboard.html", gin.H{
-				"Title": "Dashboard — TunnelPanel", "Active": "dashboard", "Username": username,
+				"Title": "Dashboard — Portix", "Active": "dashboard", "Username": username,
 			})
 		})
 
 		protected.GET("/tunnels", func(c *gin.Context) {
 			username, _ := c.Get("username")
 			c.HTML(http.StatusOK, "tunnels.html", gin.H{
-				"Title": "Tunnel Manager — TunnelPanel", "Active": "tunnels", "Username": username,
+				"Title": "Tunnel Manager — Portix", "Active": "tunnels", "Username": username,
 			})
 		})
 
 		protected.GET("/sites", func(c *gin.Context) {
 			username, _ := c.Get("username")
 			c.HTML(http.StatusOK, "sites.html", gin.H{
-				"Title": "Sites — TunnelPanel", "Active": "sites", "Username": username,
+				"Title": "Sites — Portix", "Active": "sites", "Username": username,
 			})
 		})
 
 		protected.GET("/docker", func(c *gin.Context) {
 			username, _ := c.Get("username")
 			c.HTML(http.StatusOK, "docker.html", gin.H{
-				"Title": "Docker — TunnelPanel", "Active": "docker", "Username": username,
+				"Title": "Docker — Portix", "Active": "docker", "Username": username,
 			})
 		})
 
 		protected.GET("/files", func(c *gin.Context) {
 			username, _ := c.Get("username")
 			c.HTML(http.StatusOK, "filemanager.html", gin.H{
-				"Title": "File Manager — TunnelPanel", "Active": "files", "Username": username,
+				"Title": "File Manager — Portix", "Active": "files", "Username": username,
 			})
 		})
 
 		protected.GET("/databases", func(c *gin.Context) {
 			username, _ := c.Get("username")
 			c.HTML(http.StatusOK, "databases.html", gin.H{
-				"Title": "Databases — TunnelPanel", "Active": "databases", "Username": username,
+				"Title": "Databases — Portix", "Active": "databases", "Username": username,
 			})
 		})
 
 		protected.GET("/terminal", func(c *gin.Context) {
 			username, _ := c.Get("username")
 			c.HTML(http.StatusOK, "terminal.html", gin.H{
-				"Title": "Terminal — TunnelPanel", "Active": "terminal", "Username": username,
+				"Title": "Terminal — Portix", "Active": "terminal", "Username": username,
 			})
 		})
 
 		protected.GET("/settings", func(c *gin.Context) {
 			username, _ := c.Get("username")
 			c.HTML(http.StatusOK, "settings.html", gin.H{
-				"Title": "Settings — TunnelPanel", "Active": "settings", "Username": username,
+				"Title": "Settings — Portix", "Active": "settings", "Username": username,
 			})
 		})
 	}

@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/httputil"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/portmanager"
+	"github.com/Muhammedhashirm009/portix/internal/httputil"
+	"github.com/Muhammedhashirm009/portix/internal/portmanager"
 )
 
 // PortHandler handles port management endpoints

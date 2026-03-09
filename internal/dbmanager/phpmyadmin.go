@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/portmanager"
+	"github.com/Muhammedhashirm009/portix/internal/portmanager"
 )
 
 // PhpMyAdminSetupResult is returned from EnsurePhpMyAdminServed
@@ -85,7 +85,7 @@ func EnsurePhpMyAdminServed() (*PhpMyAdminSetupResult, error) {
 
 // generatePmaVhost generates an nginx server block for phpMyAdmin (mirrors GenerateNginxVhost from sites).
 func generatePmaVhost(port int, pmaPath, phpSocket string) string {
-	return fmt.Sprintf(`# phpMyAdmin — managed by TunnelPanel
+	return fmt.Sprintf(`# phpMyAdmin — managed by Portix
 # Do not edit manually, changes will be overwritten
 
 server {

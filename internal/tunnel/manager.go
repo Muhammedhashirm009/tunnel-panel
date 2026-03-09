@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
+	"github.com/Muhammedhashirm009/portix/internal/database"
 	"gopkg.in/yaml.v3"
 )
 
@@ -87,7 +87,7 @@ func (m *Manager) ensureConfigured() {
 	}
 
 	if m.configDir == "" {
-		m.configDir = "/etc/tunnelpanel"
+		m.configDir = "/etc/portix"
 	}
 }
 
@@ -322,7 +322,7 @@ func (m *Manager) regenerateConfig() error {
 
 // reloadTunnel gracefully restarts the cloudflared service for app tunnel
 func (m *Manager) reloadTunnel() error {
-	cmd := exec.Command("systemctl", "restart", "tunnelpanel-apps-tunnel")
+	cmd := exec.Command("systemctl", "restart", "portix-apps-tunnel")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to restart apps tunnel: %s", strings.TrimSpace(string(out)))
 	}
@@ -347,17 +347,17 @@ func (m *Manager) GetTunnelStatus() (*TunnelStatus, error) {
 	m.ensureConfigured()
 
 	panelStatus := strings.TrimSpace(func() string {
-		out, _ := exec.Command("systemctl", "is-active", "tunnelpanel-panel-tunnel").Output()
+		out, _ := exec.Command("systemctl", "is-active", "portix-panel-tunnel").Output()
 		return string(out)
 	}())
 	appsStatus := strings.TrimSpace(func() string {
-		out, _ := exec.Command("systemctl", "is-active", "tunnelpanel-apps-tunnel").Output()
+		out, _ := exec.Command("systemctl", "is-active", "portix-apps-tunnel").Output()
 		return string(out)
 	}())
 
 	// Check journal for connection errors (last 30 lines is enough)
-	panelErr := checkTunnelServiceHealth("tunnelpanel-panel-tunnel")
-	appsErr := checkTunnelServiceHealth("tunnelpanel-apps-tunnel")
+	panelErr := checkTunnelServiceHealth("portix-panel-tunnel")
+	appsErr := checkTunnelServiceHealth("portix-apps-tunnel")
 
 	// Try to get CF tunnel info to verify IDs actually exist
 	var panelInfo, appsInfo *Tunnel
@@ -473,7 +473,7 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 	log.Printf("[tunnel] Panel tunnel ready: %s (ID: %s)", panelTunnel.Name, panelTunnel.ID)
 
 	// 3. Find or create Apps Tunnel (#2)
-	appsTunnel, appsSecret, err := m.findOrCreateTunnel("tunnelpanel-apps")
+	appsTunnel, appsSecret, err := m.findOrCreateTunnel("portix-apps")
 	if err != nil {
 		return nil, fmt.Errorf("failed to provision apps tunnel: %w", err)
 	}
@@ -481,7 +481,7 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 
 	// 4. Write credential files (only for newly created tunnels — secret is empty for reused ones)
 	if panelSecret != "" {
-		if err := m.writeCredentials(panelTunnel.ID, panelSecret, "tunnel-panel-creds.json"); err != nil {
+		if err := m.writeCredentials(panelTunnel.ID, panelSecret, "portix-creds.json"); err != nil {
 			return nil, fmt.Errorf("failed to write panel tunnel credentials: %w", err)
 		}
 	} else {
@@ -499,14 +499,14 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 	// 5. Write cloudflared config for panel tunnel
 	panelConfig := TunnelConfig{
 		Tunnel:          panelTunnel.ID,
-		CredentialsFile: filepath.Join(m.configDir, "tunnel-panel-creds.json"),
+		CredentialsFile: filepath.Join(m.configDir, "portix-creds.json"),
 		Ingress: []IngressRule{
 			{Hostname: panelDomain, Service: "http://localhost:8443"},
 			{Service: "http_status:404"},
 		},
 	}
 	panelConfigData, _ := yaml.Marshal(panelConfig)
-	panelConfigPath := filepath.Join(m.configDir, "tunnel-panel.yml")
+	panelConfigPath := filepath.Join(m.configDir, "portix.yml")
 	if err := os.WriteFile(panelConfigPath, panelConfigData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write panel tunnel config: %w", err)
 	}
@@ -555,8 +555,8 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 	log.Printf("[tunnel] DNS records updated for %d ingress rule(s) ✓", len(existingRules))
 
 	// 8. Update systemd service files to use correct config paths
-	m.updateSystemdService("tunnelpanel-panel-tunnel", panelConfigPath)
-	m.updateSystemdService("tunnelpanel-apps-tunnel", appsConfigPath)
+	m.updateSystemdService("portix-panel-tunnel", panelConfigPath)
+	m.updateSystemdService("portix-apps-tunnel", appsConfigPath)
 
 	// 9. Store tunnel IDs in database
 	database.DB().Exec(
@@ -566,10 +566,10 @@ func (m *Manager) SetupTunnels(panelDomain string) (*SetupResult, error) {
 
 	// 10. Reload systemd and start tunnels
 	exec.Command("systemctl", "daemon-reload").Run()
-	exec.Command("systemctl", "enable", "tunnelpanel-panel-tunnel").Run()
-	exec.Command("systemctl", "enable", "tunnelpanel-apps-tunnel").Run()
-	exec.Command("systemctl", "start", "tunnelpanel-panel-tunnel").Run()
-	exec.Command("systemctl", "start", "tunnelpanel-apps-tunnel").Run()
+	exec.Command("systemctl", "enable", "portix-panel-tunnel").Run()
+	exec.Command("systemctl", "enable", "portix-apps-tunnel").Run()
+	exec.Command("systemctl", "start", "portix-panel-tunnel").Run()
+	exec.Command("systemctl", "start", "portix-apps-tunnel").Run()
 	log.Println("[tunnel] Tunnels started ✓")
 
 	return &SetupResult{
@@ -613,8 +613,8 @@ func (m *Manager) updateSystemdService(serviceName, configPath string) {
 func (m *Manager) findOrCreateTunnel(baseName string) (*Tunnel, string, error) {
 	// Stop any running tunnel service first so cloudflared releases the tunnel connection
 	svcName := map[string]string{
-		"tunnelpanel-panel": "tunnelpanel-panel-tunnel",
-		"tunnelpanel-apps":  "tunnelpanel-apps-tunnel",
+		"tunnelpanel-panel": "portix-panel-tunnel",
+		"portix-apps":  "portix-apps-tunnel",
 	}[baseName]
 	if svcName != "" {
 		exec.Command("systemctl", "stop", svcName).Run()

@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/terminal"
+	"github.com/Muhammedhashirm009/portix/internal/terminal"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )

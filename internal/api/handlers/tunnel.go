@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/config"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/httputil"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/tunnel"
+	"github.com/Muhammedhashirm009/portix/internal/config"
+	"github.com/Muhammedhashirm009/portix/internal/database"
+	"github.com/Muhammedhashirm009/portix/internal/httputil"
+	"github.com/Muhammedhashirm009/portix/internal/tunnel"
 )
 
 // TunnelHandler handles tunnel management endpoints
@@ -192,7 +192,7 @@ func (h *TunnelHandler) SetupTunnels(c *gin.Context) {
 	// Create a temporary manager for setup
 	dataDir := h.cfg.DataDir
 	if dataDir == "" {
-		dataDir = "/etc/tunnelpanel"
+		dataDir = "/etc/portix"
 	}
 	setupMgr := tunnel.NewManager(cf, nil, dataDir, "", "")
 

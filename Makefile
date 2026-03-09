@@ -1,8 +1,8 @@
 .PHONY: build build-server build-cli clean install dev deps
 
 # Variables
-BINARY_SERVER = tunnelpanel
-BINARY_CLI = tunnelpanel-cli
+BINARY_SERVER = portix
+BINARY_CLI = portix-cli
 BUILD_DIR = ./build
 VERSION = 1.0.0
 LDFLAGS = -s -w -X main.version=$(VERSION)
@@ -16,24 +16,24 @@ deps:
 build: deps build-server build-cli
 
 build-server:
-	@echo "🔨 Building TunnelPanel server..."
+	@echo "🔨 Building Portix server..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=1 go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_SERVER) ./cmd/server/
 
 build-cli:
-	@echo "🔨 Building TunnelPanel CLI..."
+	@echo "🔨 Building Portix CLI..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=1 go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_CLI) ./cmd/cli/
 
 # Install to system
 install: build
-	@echo "📦 Installing TunnelPanel..."
+	@echo "📦 Installing Portix..."
 	sudo cp $(BUILD_DIR)/$(BINARY_SERVER) /usr/local/bin/$(BINARY_SERVER)
 	sudo cp $(BUILD_DIR)/$(BINARY_CLI) /usr/local/bin/$(BINARY_CLI)
 	sudo chmod +x /usr/local/bin/$(BINARY_SERVER)
 	sudo chmod +x /usr/local/bin/$(BINARY_CLI)
-	sudo mkdir -p /etc/tunnelpanel
-	sudo mkdir -p /var/log/tunnelpanel
+	sudo mkdir -p /etc/portix
+	sudo mkdir -p /var/log/portix
 	@echo "✅ Installed to /usr/local/bin/"
 
 # Development run

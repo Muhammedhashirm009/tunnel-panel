@@ -97,7 +97,7 @@ func FindPhpMyAdminPath() string {
 	return ""
 }
 
-// FindPhpMyAdminPort finds the port where TunnelPanel's managed phpMyAdmin nginx config is serving.
+// FindPhpMyAdminPort finds the port where Portix's managed phpMyAdmin nginx config is serving.
 // Only checks our own managed config to avoid false-positives from other nginx sites.
 func FindPhpMyAdminPort() int {
 	// Check our managed config in sites-enabled/ (same location as Sites)

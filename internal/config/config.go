@@ -11,12 +11,12 @@ import (
 const (
 	DefaultPort         = 8443
 	DefaultHost         = "127.0.0.1"
-	DefaultDataDir      = "/etc/tunnelpanel"
-	DefaultDBPath       = "/etc/tunnelpanel/panel.db"
-	DefaultLogDir       = "/var/log/tunnelpanel"
+	DefaultDataDir      = "/etc/portix"
+	DefaultDBPath       = "/etc/portix/panel.db"
+	DefaultLogDir       = "/var/log/portix"
 	DefaultPortRangeMin = 8080
 	DefaultPortRangeMax = 9000
-	AppName             = "TunnelPanel"
+	AppName             = "Portix"
 	Version             = "1.0.0"
 )
 

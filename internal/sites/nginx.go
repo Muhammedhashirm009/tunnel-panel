@@ -9,7 +9,7 @@ import (
 func GenerateNginxVhost(domain, docRoot, phpVersion string, port int) string {
 	phpSocket := fmt.Sprintf("/var/run/php/php%s-fpm.sock", phpVersion)
 
-	conf := fmt.Sprintf("# TunnelPanel managed - %s\n", domain)
+	conf := fmt.Sprintf("# Portix managed - %s\n", domain)
 	conf += "# Do not edit manually, changes will be overwritten\n\n"
 	conf += "server {\n"
 	conf += fmt.Sprintf("    listen %d;\n", port)
@@ -50,7 +50,7 @@ func GenerateNginxVhost(domain, docRoot, phpVersion string, port int) string {
 
 // GenerateNginxProxy creates an Nginx reverse proxy config (for containers, Node apps, etc.)
 func GenerateNginxProxy(domain string, targetPort, listenPort int) string {
-	conf := fmt.Sprintf("# TunnelPanel managed - %s (proxy)\n\n", domain)
+	conf := fmt.Sprintf("# Portix managed - %s (proxy)\n\n", domain)
 	conf += "server {\n"
 	conf += fmt.Sprintf("    listen %d;\n", listenPort)
 	conf += fmt.Sprintf("    server_name %s;\n\n", domain)

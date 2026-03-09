@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
+	"github.com/Muhammedhashirm009/portix/internal/database"
 )
 
 // Default port range for hosted apps

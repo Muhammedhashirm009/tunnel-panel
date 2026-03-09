@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/auth"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/config"
+	"github.com/Muhammedhashirm009/portix/internal/auth"
+	"github.com/Muhammedhashirm009/portix/internal/config"
 )
 
 // AuthMiddleware validates JWT tokens on protected routes

@@ -1,4 +1,4 @@
-module github.com/Muhammedhashirm009/tunnel-panel
+module github.com/Muhammedhashirm009/portix
 
 go 1.22.0
 

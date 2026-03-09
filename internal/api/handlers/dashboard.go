@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/httputil"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/system"
+	"github.com/Muhammedhashirm009/portix/internal/httputil"
+	"github.com/Muhammedhashirm009/portix/internal/system"
 )
 
 // DashboardHandler handles dashboard endpoints
@@ -40,8 +40,8 @@ func (h *DashboardHandler) ControlService(c *gin.Context) {
 	allowed := map[string]bool{
 		"nginx": true, "mysql": true, "mariadb": true,
 		"docker": true, "redis-server": true,
-		"tunnelpanel": true, "tunnelpanel-panel-tunnel": true,
-		"tunnelpanel-apps-tunnel": true,
+		"portix": true, "portix-panel-tunnel": true,
+		"portix-apps-tunnel": true,
 		"php7.4-fpm": true, "php8.0-fpm": true,
 		"php8.1-fpm": true, "php8.2-fpm": true, "php8.3-fpm": true,
 	}

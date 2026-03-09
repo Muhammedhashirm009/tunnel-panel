@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/database"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/dbmanager"
-	"github.com/Muhammedhashirm009/tunnel-panel/internal/tunnel"
+	"github.com/Muhammedhashirm009/portix/internal/database"
+	"github.com/Muhammedhashirm009/portix/internal/dbmanager"
+	"github.com/Muhammedhashirm009/portix/internal/tunnel"
 	"github.com/gin-gonic/gin"
 )
 
