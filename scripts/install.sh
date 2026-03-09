@@ -153,9 +153,10 @@ hdr "Step 4/7 — Installing Portix Binary"
 # Try to download pre-built binary from GitHub releases
 BINARY_URL=""
 if [[ "$PORTIX_VERSION" == "latest" ]]; then
-  info "Fetching latest release from GitHub..."
+  info "Checking for pre-built release on GitHub..."
   RELEASE_JSON=$(curl -sSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null || echo "{}")
-  BINARY_URL=$(echo "$RELEASE_JSON" | grep -o "\"browser_download_url\":[^,}]*portix-linux-${GOARCH}[^\"]*" | cut -d'"' -f4 | head -1)
+  # Use || true — grep exits 1 on no match which kills script under set -euo pipefail
+  BINARY_URL=$(echo "$RELEASE_JSON" | grep -o '"browser_download_url":"[^"]*portix-linux-'"${GOARCH}"'[^"]*"' | grep -o 'https://[^"]*' || true)
 fi
 
 if [[ -n "$BINARY_URL" ]]; then
@@ -164,31 +165,43 @@ if [[ -n "$BINARY_URL" ]]; then
   chmod +x "${INSTALL_DIR}/${BINARY}"
   ok "Portix binary installed from release"
 else
-  warn "No pre-built release found — building from source..."
+  warn "No pre-built release — building from source (takes ~60s)..."
 
-  # Install Go if needed
-  if ! command -v go &>/dev/null || [[ "$(go version | awk '{print $3}' | sed 's/go//' | cut -d. -f1)" -lt 22 ]]; then
+  # Check if Go is already installed with a sufficient version
+  NEED_GO=true
+  if command -v go &>/dev/null; then
+    GO_MAJ=$(go version 2>/dev/null | awk '{print $3}' | sed 's/go//' | cut -d. -f1 || echo "0")
+    GO_MIN=$(go version 2>/dev/null | awk '{print $3}' | sed 's/go//' | cut -d. -f2 || echo "0")
+    if [[ "${GO_MAJ:-0}" -ge 1 ]] && [[ "${GO_MIN:-0}" -ge 21 ]]; then
+      NEED_GO=false
+      ok "Go $(go version | awk '{print $3}') (already installed)"
+    fi
+  fi
+
+  if [[ "$NEED_GO" == "true" ]]; then
     info "Installing Go 1.22..."
     GO_VER="1.22.5"
-    GO_URL="https://go.dev/dl/go${GO_VER}.linux-${GOARCH}.tar.gz"
-    curl -sSL "$GO_URL" -o /tmp/go.tar.gz
+    curl -sSL "https://go.dev/dl/go${GO_VER}.linux-${GOARCH}.tar.gz" -o /tmp/go.tar.gz \
+      || fail "Failed to download Go — check internet connection"
     rm -rf /usr/local/go
     tar -C /usr/local -xzf /tmp/go.tar.gz
     export PATH="/usr/local/go/bin:$PATH"
-    echo 'export PATH="/usr/local/go/bin:$PATH"' >> /etc/profile.d/go.sh
-    rm /tmp/go.tar.gz
+    echo 'export PATH="/usr/local/go/bin:$PATH"' > /etc/profile.d/go.sh
+    rm -f /tmp/go.tar.gz
     ok "Go $(go version | awk '{print $3}') installed"
-  else
-    ok "Go $(go version | awk '{print $3}') (already installed)"
   fi
 
-  # Clone and build
-  BUILD_DIR=$(mktemp -d /tmp/portix-build-XXXX)
-  info "Cloning Portix source from GitHub..."
-  git clone --depth 1 "https://github.com/${GITHUB_REPO}.git" "$BUILD_DIR" > /dev/null 2>&1
-  info "Building Portix (this takes ~30s)..."
+  # Clone — use fixed path (mktemp creates dir that git clone can't clone INTO)
+  BUILD_DIR="/tmp/portix-build-$$"
+  rm -rf "$BUILD_DIR"
+  info "Cloning Portix source..."
+  git clone --depth 1 "https://github.com/${GITHUB_REPO}.git" "$BUILD_DIR" 2>&1 | sed 's/^/  /' \
+    || fail "git clone failed — check internet connection"
+
+  info "Compiling Portix binary..."
   cd "$BUILD_DIR"
-  CGO_ENABLED=1 go build -ldflags "-s -w -X main.version=${PORTIX_VERSION}" -o "${INSTALL_DIR}/${BINARY}" ./cmd/server/ 2>&1
+  CGO_ENABLED=1 go build -ldflags "-s -w" -o "${INSTALL_DIR}/${BINARY}" ./cmd/server/ 2>&1 | sed 's/^/  /' \
+    || fail "Build failed — see output above"
   chmod +x "${INSTALL_DIR}/${BINARY}"
   cd /
   rm -rf "$BUILD_DIR"
