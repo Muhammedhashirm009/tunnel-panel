@@ -18,7 +18,7 @@ function hideCreateDBModal() {
 
 async function loadDatabases() {
     try {
-        const res = await API.get('/api/databases');
+        const res = await API.get('/databases');
         const tbody = document.getElementById('dbs-list');
         tbody.innerHTML = '';
 
@@ -64,7 +64,7 @@ async function createDatabase() {
             pma_domain: document.getElementById('pma-domain').value
         };
 
-        const res = await API.post('/api/databases', payload);
+        const res = await API.post('/databases', payload);
         if (res.warning) {
             alert(res.warning);
         }
@@ -85,7 +85,7 @@ async function deleteDatabase(id, name) {
     }
 
     try {
-        await API.delete(`/api/databases/${id}`);
+        await API.delete(`/databases/${id}`);
         loadDatabases();
     } catch (e) {
         alert('Failed to delete database: ' + e.message);
