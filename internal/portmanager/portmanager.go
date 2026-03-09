@@ -168,12 +168,16 @@ func (pm *PortManager) GetRange() (min, max int) {
 	return pm.minPort, pm.maxPort
 }
 
-// isPortFree checks if a port is available on the system
+// isPortFree checks if a port has nothing listening on it.
+// Uses DialTimeout (connect) not net.Listen (bind) to avoid WSL2/Hyper-V
+// port reservation failures — reserved ports reject bind but not connect checks.
 func isPortFree(port int) bool {
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 150*time.Millisecond)
 	if err != nil {
-		return false
+		// Connection refused / timeout = nothing listening = port is free
+		return true
 	}
-	ln.Close()
-	return true
+	conn.Close()
+	// Successfully connected = something is already listening = not free
+	return false
 }
