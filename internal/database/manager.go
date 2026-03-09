@@ -147,7 +147,7 @@ func (m *Manager) ListDatabases() ([]ManagedDatabase, error) {
 // DeleteDatabase deletes a managed database and its containers
 func (m *Manager) DeleteDatabase(id int) (int, error) {
 	var pmaContainerID, dbContainerID string
-	var pmaPort, dbPort int
+	var dbPort int
 
 	err := DB().QueryRow("SELECT container_id, port, pma_container_id FROM databases_managed WHERE id = ?", id).Scan(&dbContainerID, &dbPort, &pmaContainerID)
 	if err != nil {
