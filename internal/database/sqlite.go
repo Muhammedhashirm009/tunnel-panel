@@ -131,13 +131,7 @@ func migrate() error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE SET NULL
 	);
-
-    -- Try to add new columns if the table already existed before this update
-    ALTER TABLE databases_managed ADD COLUMN container_id TEXT DEFAULT '';
-    ALTER TABLE databases_managed ADD COLUMN port INTEGER DEFAULT 0;
-    ALTER TABLE databases_managed ADD COLUMN pma_container_id TEXT DEFAULT '';
-    ALTER TABLE databases_managed ADD COLUMN pma_domain TEXT DEFAULT '';
-
+	);
 
 	CREATE TABLE IF NOT EXISTS audit_log (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,5 +161,16 @@ func migrate() error {
 	`
 
 	_, err := db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Try to add new columns if the table already existed before this update
+	// We ignore errors here because the columns might already exist
+	db.Exec("ALTER TABLE databases_managed ADD COLUMN container_id TEXT DEFAULT ''")
+	db.Exec("ALTER TABLE databases_managed ADD COLUMN port INTEGER DEFAULT 0")
+	db.Exec("ALTER TABLE databases_managed ADD COLUMN pma_container_id TEXT DEFAULT ''")
+	db.Exec("ALTER TABLE databases_managed ADD COLUMN pma_domain TEXT DEFAULT ''")
+
+	return nil
 }
